@@ -33,6 +33,12 @@ install(
 install(TARGETS
   aerial_robot_base_node
   DESTINATION lib/${PROJECT_NAME}
-)
+  )
+
+# install launch files
+install(
+  DIRECTORY launch
+  DESTINATION share/${PROJECT_NAME}/
+  )
 
 ament_package()
