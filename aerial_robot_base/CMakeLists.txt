@@ -1,3 +1,4 @@
+
 cmake_minimum_required(VERSION 3.5)
 project(aerial_robot_base)
 
@@ -8,8 +9,8 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
 
-# ヘッダーファイルが含まれるディレクトリをインクルードパスに追加
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
@@ -22,9 +23,9 @@ add_executable(aerial_robot_base_node
 ament_target_dependencies(aerial_robot_base_node
   rclcpp
   std_msgs
+  std_srvs
 )
 
-# インストール時にヘッダーファイルを含める（オプション）
 install(
   DIRECTORY include/
   DESTINATION include
@@ -34,6 +35,16 @@ install(TARGETS
   aerial_robot_base_node
   DESTINATION lib/${PROJECT_NAME}
   )
+
+# install python files
+ament_python_install_package(${PROJECT_NAME})
+install(PROGRAMS
+  scripts/keyboard_command.py
+  scripts/rms.py
+  scripts/send_igmp_report.py
+  scripts/simple_demo.py
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 # install launch files
 install(

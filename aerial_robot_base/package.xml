@@ -11,11 +11,13 @@
   <depend>rclcpp</depend>
 
   <exec_depend>ros2launch</exec_depend>
+  <exec_depend>ament_cmake_python</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
 
   <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
 
   <!-- <depend>aerial_robot_control</depend> -->
   <!-- <depend>aerial_robot_estimation</depend> -->
@@ -28,6 +30,8 @@
   <!-- <depend>ros_numpy</depend> -->
   <!-- <depend>ublox_gps</depend> -->
   <!-- <depend>ntrip_ros</depend> -->
+  <!-- <exec_depend>ros2_numpy</exec_depend> -->
+  <!-- <exec_depend>smach</exec_depend> -->
 
   <export>
     <build_type>ament_cmake</build_type>
