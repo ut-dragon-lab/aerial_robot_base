@@ -25,13 +25,13 @@
   <depend>joy</depend>
   <!-- <depend>jsk_rviz_plugins</depend> -->
   <!-- <depend>mocap_optitrack</depend> -->
-  <!-- <depend>smach_ros</depend> -->
+  <depend>smach_ros</depend>
   <!-- <depend>smach_viewer</depend> -->
   <!-- <depend>ros_numpy</depend> -->
   <!-- <depend>ublox_gps</depend> -->
   <!-- <depend>ntrip_ros</depend> -->
-  <!-- <exec_depend>ros2_numpy</exec_depend> -->
-  <!-- <exec_depend>smach</exec_depend> -->
+  <exec_depend>ros2_numpy</exec_depend>
+  <exec_depend>smach</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
