@@ -1,0 +1,9 @@
+# .pre-commit-config.yaml
+repos:
+  - repo: local
+    hooks:
+      - id: clang-format
+        name: clang-format
+        entry: clang-format -i
+        language: system
+        files: \.(cpp|cc|h|hpp)$
