@@ -5,21 +5,30 @@
 #### Build
 ```bash
 source /opt/ros/${ROS_DISTRO}/setup.bash
+sudo apt update
+# Install Python tools
 sudo apt install -y python3-vcstool python3-colcon-common-extensions
-mkdir -p ~/ros2/aerial_robot_2_ws/src
-cd ~/ros2/aerial_robot_2_ws
+# Install format tools
+sudo apt-get install clang-format
+pip install pre-commit
+# Create workspace
+mkdir -p ~/ros2/aerial_robot_base_ws/src
+cd ~/ros2/aerial_robot_base_ws
 sudo rosdep init
 rosdep update
 # install repository
 vcs import src <<EOF
 repositories:
-  aerial_robot_2:
+  aerial_robot_base:
     type: git
-    url: 'https://github.com/sugihara-16/aerial_robot_2.git'
+    url: 'https://github.com/ut-dragon-lab/aerial_robot_base.git'
     version: master
 EOF
-# install depended repositories
-vcs import src < src/aerial_robot_2/aerial_robot_${ROS_DISTRO}.repos
+# Install depended repositories
+vcs import src < src/aerial_robot_base/aerial_robot_${ROS_DISTRO}.repos
 rosdep install -y -r --from-paths src --ignore-src --rosdistro ${ROS_DISTRO}
 colcon build --symlink-install
+# Setup pre-commit formatting
+cd ~/ros2/aerial_robot_base_ws/src/aerial_robot_base
+pre-commit install
 ```
