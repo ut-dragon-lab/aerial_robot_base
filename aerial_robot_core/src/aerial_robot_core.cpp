@@ -1,12 +1,12 @@
-#include "aerial_robot_base/aerial_robot_base.h"
+#include "aerial_robot_core/aerial_robot_core.h"
 
 #include <chrono>
 #include <functional>
 
 using namespace std::chrono_literals;
 
-AerialRobotBase::AerialRobotBase()
-: Node("aerial_robot_base")
+AerialRobotCore::AerialRobotCore()
+: Node("aerial_robot_core")
 {
   //declare parameters
   this->declare_parameter<bool>("param_verbose", true);
@@ -26,7 +26,7 @@ AerialRobotBase::AerialRobotBase()
     auto period = std::chrono::duration<double>(1.0 / main_rate);
     main_timer_ = this->create_wall_timer(
       period,
-      std::bind(&AerialRobotBase::mainFunc, this)
+      std::bind(&AerialRobotCore::mainFunc, this)
     );
   }
 
@@ -34,12 +34,12 @@ AerialRobotBase::AerialRobotBase()
   debug_pub_ = this->create_publisher<std_msgs::msg::String>("debug_topic", 10);  
 }
 
-AerialRobotBase::~AerialRobotBase()
+AerialRobotCore::~AerialRobotCore()
 {
   //we don't need any stop process since they are sopped automatically
 }
 
-void AerialRobotBase::mainFunc()
+void AerialRobotCore::mainFunc()
 {
   //navigator_->update();
   // controller_->update();

@@ -2,7 +2,7 @@ from setuptools import setup
 import os
 from glob import glob
 
-package_name = 'aerial_robot_base'
+package_name = 'aerial_robot_core'
 
 setup(
     name=package_name,
@@ -19,13 +19,13 @@ setup(
     author_email='root@todo.jp',
     maintainer='root',
     maintainer_email='root@todo.jp',
-    description='ROS2 port of aerial_robot_base package',
+    description='ROS2 port of aerial_robot_core package',
     # install_requires=['setuptools', 'ros2_numpy'],
     license='BSD',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            # "robot_interface_node = aerial_robot_base.robot_interface_node:main"
+            # "robot_interface_node = aerial_robot_core.robot_interface_node:main"
         ],
     },
 )

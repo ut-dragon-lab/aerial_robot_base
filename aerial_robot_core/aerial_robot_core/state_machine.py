@@ -38,7 +38,7 @@ import numpy as np
 import json
 import rclpy
 
-from aerial_robot_base.robot_interface import RobotInterface
+from aerial_robot_core.robot_interface import RobotInterface
 from std_msgs.msg import Empty
 from sensor_msgs.msg import Joy
 
