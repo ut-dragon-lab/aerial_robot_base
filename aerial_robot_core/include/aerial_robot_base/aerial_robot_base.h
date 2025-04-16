@@ -3,11 +3,11 @@
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/string.hpp>
 
-class AerialRobotBase : public rclcpp::Node
+class AerialRobotCore : public rclcpp::Node
 {
 public:
-  AerialRobotBase();
-  ~AerialRobotBase();
+  AerialRobotCore();
+  ~AerialRobotCore();
 
 private:
   void mainFunc();

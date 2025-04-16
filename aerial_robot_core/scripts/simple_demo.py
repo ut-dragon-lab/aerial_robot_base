@@ -36,8 +36,8 @@ import rclpy
 import smach
 import smach_ros
 
-from aerial_robot_base.robot_interface import RobotInterface
-from aerial_robot_base.state_machine import Start, Arm, Takeoff, WayPoint, CircleTrajectory, Land
+from aerial_robot_core.robot_interface import RobotInterface
+from aerial_robot_core.state_machine import Start, Arm, Takeoff, WayPoint, CircleTrajectory, Land
 
 class SimpleDemo():
     def __init__(self):

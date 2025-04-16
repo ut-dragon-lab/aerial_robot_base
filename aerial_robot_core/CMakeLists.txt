@@ -1,6 +1,5 @@
-
 cmake_minimum_required(VERSION 3.5)
-project(aerial_robot_base)
+project(aerial_robot_core)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -15,12 +14,12 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-add_executable(aerial_robot_base_node
-  src/aerial_robot_base_node.cpp
-  src/aerial_robot_base.cpp
+add_executable(aerial_robot_core_node
+  src/aerial_robot_core_node.cpp
+  src/aerial_robot_core.cpp
 )
 
-ament_target_dependencies(aerial_robot_base_node
+ament_target_dependencies(aerial_robot_core_node
   rclcpp
   std_msgs
   std_srvs
@@ -32,7 +31,7 @@ install(
 )
 
 install(TARGETS
-  aerial_robot_base_node
+  aerial_robot_core_node
   DESTINATION lib/${PROJECT_NAME}
   )
 
