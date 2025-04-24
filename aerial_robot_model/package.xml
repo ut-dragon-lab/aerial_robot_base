@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>aerial_robot_model</name>
+  <version>0.0.0</version>
+  <description>The model for aerial robots (ROS 2 / Humble port)</description>
+  <maintainer email="root@todo.todo">root</maintainer>
+  <license>TODO: License declaration</license>
+
+  <!-- build tool -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>rosidl_default_generators</buildtool_depend>
+
+  <!-- core runtime dependencies -->
+  <depend>rclcpp</depend>
+  <depend>pluginlib</depend>
+  <depend>geometry_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>interactive_markers</depend>
+  <depend>kalman_filter</depend>
+  <depend>kdl_parser</depend>
+  <depend>spinal</depend>
+  <depend>std_msgs</depend>
+  <depend>tf2_ros</depend>
+  <depend>tf2_eigen</depend>
+  <depend>tf2_geometry_msgs</depend>
+  <depend>tf2_kdl</depend>
+  <!-- <depend>orocos_kdl</depend> -->
+  <depend>urdfdom_headers</depend>
+  <depend>visualization_msgs</depend>
+  <depend>tinyxml2_vendor</depend>
+
+  <!-- service/message generation support -->
+  <build_export_depend>rosidl_default_runtime</build_export_depend>
+  <exec_depend>rosidl_default_runtime</exec_depend>
+
+  <!-- xacro はランタイムツール -->
+  <exec_depend>xacro</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+    <!-- pluginlib 用のエントリポイント -->
+    <pluginlib plugin="${prefix}/plugins/robot_model_plugins.xml"/>
+  </export>
+  <member_of_group>rosidl_interface_packages</member_of_group>
+</package>
