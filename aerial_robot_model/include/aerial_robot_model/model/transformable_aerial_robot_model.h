@@ -12,9 +12,12 @@ namespace transformable {
 // Transformable Aerial Robot Model
 class RobotModel : public ::aerial_robot_model::RobotModel {
  public:
-  RobotModel(rclcpp::Node::SharedPtr node, bool init_with_rosparam = true, bool verbose = false,
-             double fc_f_min_thre = 0, double fc_t_min_thre = 0, double epsilon = 10.0);
+  RobotModel();
   virtual ~RobotModel() = default;
+
+  virtual void initialize(rclcpp::Node::SharedPtr node, bool init_with_rosparam = true, bool verbose = false,
+                          bool fixed_model = false, double fc_f_min_thre = 0, double fc_t_min_thre = 0,
+                          double epsilon = 10.0) override;
 
   virtual void updateJacobians();
   virtual void updateJacobians(const KDL::JntArray& joint_positions, bool update_model = true);

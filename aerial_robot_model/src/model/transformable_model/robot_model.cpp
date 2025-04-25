@@ -2,10 +2,13 @@
 
 using namespace aerial_robot_model::transformable;
 
-RobotModel::RobotModel(rclcpp::Node::SharedPtr node, bool init_with_rosparam, bool verbose, double fc_f_min_thre,
-                       double fc_t_min_thre, double epsilon)
-    : aerial_robot_model::RobotModel(node, init_with_rosparam, verbose, false, /* non-fixed model */
-                                     fc_f_min_thre, fc_t_min_thre, epsilon) {
+RobotModel::RobotModel() : aerial_robot_model::RobotModel() {}
+
+void RobotModel::initialize(rclcpp::Node::SharedPtr node, bool init_with_rosparam, bool verbose, bool fixed_model,
+                            double fc_f_min_thre, double fc_t_min_thre, double epsilon) {
+  aerial_robot_model::RobotModel::initialize(node, init_with_rosparam, verbose, fixed_model, fc_f_min_thre,
+                                             fc_t_min_thre, epsilon);
+
   std::function<void(const KDL::TreeElement&)> recursiveSegmentCheck = [&recursiveSegmentCheck,
                                                                         this](const KDL::TreeElement& tree_element) {
     const KDL::Segment current_seg = GetTreeElementSegment(tree_element);

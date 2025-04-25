@@ -7,22 +7,24 @@
 namespace aerial_robot_model {
 static const rclcpp::Logger LOGGER = rclcpp::get_logger("RobotModel");
 
-RobotModel::RobotModel(rclcpp::Node::SharedPtr node, bool init_with_rosparam, bool verbose, bool fixed_model,
-                       double fc_f_min_thre, double fc_t_min_thre, double epsilon)
-    : node_(std::move(node)),
-      verbose_(verbose),
-      fixed_model_(fixed_model),
-      fc_f_min_thre_(fc_f_min_thre),
-      fc_t_min_thre_(fc_t_min_thre),
-      epsilon_(epsilon),
-      baselink_("fc"),
+RobotModel::RobotModel()
+    : baselink_("fc"),
       thrust_link_("thrust"),
       rotor_num_(0),
       joint_num_(0),
       thrust_max_(0),
       thrust_min_(0),
       initialized_(false),
-      mass_(0.0) {
+      mass_(0.0) {}
+
+void RobotModel::initialize(rclcpp::Node::SharedPtr node, bool init_with_rosparam, bool verbose, bool fixed_model,
+                            double fc_f_min_thre, double fc_t_min_thre, double epsilon) {
+  node_ = node;
+  verbose_ = verbose;
+  fixed_model_ = fixed_model;
+  fc_f_min_thre_ = fc_f_min_thre;
+  fc_t_min_thre_ = fc_t_min_thre;
+  epsilon_ = epsilon;
   if (init_with_rosparam) {
     getParamFromRos();
   }

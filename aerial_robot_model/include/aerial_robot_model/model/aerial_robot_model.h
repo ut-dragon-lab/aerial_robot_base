@@ -46,9 +46,12 @@ namespace aerial_robot_model {
 // Basic Aerial Robot Model
 class RobotModel {
  public:
-  RobotModel(rclcpp::Node::SharedPtr node, bool init_with_rosparam = true, bool verbose = false,
-             bool fixed_model = true, double fc_f_min_thre = 0.0, double fc_t_min_thre = 0.0, double epsilon = 10.0);
+  RobotModel();
   virtual ~RobotModel() = default;
+
+  virtual void initialize(rclcpp::Node::SharedPtr node, bool init_with_rosparam = true, bool verbose = false,
+                          bool fixed_model = true, double fc_f_min_thre = 0.0, double fc_t_min_thre = 0.0,
+                          double epsilon = 10.0);
 
   void updateRobotModel();
   void updateRobotModel(const KDL::JntArray &joint_positions);
