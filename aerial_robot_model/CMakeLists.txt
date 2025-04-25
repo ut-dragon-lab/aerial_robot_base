@@ -34,6 +34,11 @@ include_directories(
 # build the RobotModel library
 add_library(aerial_robot_model_base SHARED
   src/model/base_model/robot_model.cpp
+  src/model/transformable_model/robot_model.cpp
+  src/model/transformable_model/kinematics.cpp
+  src/model/transformable_model/jacobians.cpp
+  src/model/transformable_model/stability.cpp
+  src/model/transformable_model/statics.cpp
 )
 
 # link dependencies
