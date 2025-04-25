@@ -34,12 +34,11 @@
   <build_export_depend>rosidl_default_runtime</build_export_depend>
   <exec_depend>rosidl_default_runtime</exec_depend>
 
-  <!-- xacro はランタイムツール -->
+  <!-- xacro -->
   <exec_depend>xacro</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
-    <!-- pluginlib 用のエントリポイント -->
     <pluginlib plugin="${prefix}/plugins/robot_model_plugins.xml"/>
   </export>
   <member_of_group>rosidl_interface_packages</member_of_group>
