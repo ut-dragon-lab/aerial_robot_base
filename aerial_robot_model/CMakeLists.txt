@@ -109,27 +109,27 @@ ament_target_dependencies(servo_bridge_node
   )
 target_link_libraries (servo_bridge_node servo_bridge)
 
-# add_executable(rotor_tf_publisher src/utils/rotor_tf_publisher.cpp)
-# ament_target_dependencies(rotor_tf_publisher
-#   rclcpp
-#   tf2_ros
-#   tf2_kdl
-#   kdl_parser
-#   urdf
-#   geometry_msgs
-#   )
-# target_link_libraries(rotor_tf_publisher ${orocos_kdl_LIBRARIES})
+add_executable(rotor_tf_publisher src/utils/rotor_tf_publisher.cpp)
+ament_target_dependencies(rotor_tf_publisher
+  rclcpp
+  tf2_ros
+  tf2_kdl
+  kdl_parser
+  urdf
+  geometry_msgs
+  )
+target_link_libraries(rotor_tf_publisher ${orocos_kdl_LIBRARIES})
 
 
-# add_executable(interactive_marker_tf_broadcaster src/utils/interactive_marker_tf_broadcaster.cpp)
-# ament_target_dependencies(interactive_marker_tf_broadcaster
-#   rclcpp
-#   interactive_markers
-#   visualization_msgs
-#   geometry_msgs
-#   tf2_ros
-# )
-# target_link_libraries(interactive_marker_tf_broadcaster)
+add_executable(interactive_marker_tf_broadcaster src/utils/interactive_marker_tf_broadcaster.cpp)
+ament_target_dependencies(interactive_marker_tf_broadcaster
+  rclcpp
+  interactive_markers
+  visualization_msgs
+  geometry_msgs
+  tf2_ros
+)
+target_link_libraries(interactive_marker_tf_broadcaster)
 
 install(
   TARGETS
