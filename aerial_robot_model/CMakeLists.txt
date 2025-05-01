@@ -21,7 +21,12 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(tinyxml2_vendor REQUIRED)
+find_package(std_srvs REQUIRED)
+find_package(controller_manager_msgs REQUIRED)
+find_package(spinal REQUIRED)
+find_package(kalman_filter REQUIRED)
 find_package(TinyXML2 REQUIRED)
+find_package(interactive_markers REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/AddExtraModule.srv"
@@ -78,7 +83,53 @@ target_link_libraries(robot_model_pluginlib
 pluginlib_export_plugin_description_file(
   ${PROJECT_NAME}
   plugins/robot_model_plugins.xml
-)
+  )
+
+add_library(servo_bridge src/servo_bridge/servo_bridge.cpp)
+ament_target_dependencies(servo_bridge
+  rclcpp
+  geometry_msgs
+  sensor_msgs
+  std_srvs
+  controller_manager_msgs
+  spinal
+  urdf
+  kalman_filter
+  tf2_eigen
+  )
+# target_link_libraries(servo_bridge lpf_filter)
+add_executable(servo_bridge_node src/servo_bridge/servo_bridge_node.cpp)
+ament_target_dependencies(servo_bridge_node
+  rclcpp
+  std_srvs
+  geometry_msgs
+  sensor_msgs
+  controller_manager_msgs
+  spinal
+  )
+target_link_libraries (servo_bridge_node servo_bridge)
+
+# add_executable(rotor_tf_publisher src/utils/rotor_tf_publisher.cpp)
+# ament_target_dependencies(rotor_tf_publisher
+#   rclcpp
+#   tf2_ros
+#   tf2_kdl
+#   kdl_parser
+#   urdf
+#   geometry_msgs
+#   )
+# target_link_libraries(rotor_tf_publisher ${orocos_kdl_LIBRARIES})
+
+
+# add_executable(interactive_marker_tf_broadcaster src/utils/interactive_marker_tf_broadcaster.cpp)
+# ament_target_dependencies(interactive_marker_tf_broadcaster
+#   rclcpp
+#   interactive_markers
+#   visualization_msgs
+#   geometry_msgs
+#   tf2_ros
+# )
+# target_link_libraries(interactive_marker_tf_broadcaster)
 
 install(
   TARGETS
@@ -93,10 +144,15 @@ install(
   DIRECTORY
     include
     launch
-    script
+    # script
     plugins
   DESTINATION share/${PROJECT_NAME}
   USE_SOURCE_PERMISSIONS
+  )
+
+install(TARGETS # rotor_tf_publisher interactive_marker_tf_broadcaster
+  # servo_bridge_node
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 ament_export_libraries(aerial_robot_model_base # robot_model_pluginlib
@@ -118,6 +174,12 @@ ament_export_dependencies(
   tinyxml2_vendor
   TinyXML2
   rosidl_default_runtime
-)
+  std_srvs
+  tf2_ros
+  interactive_markers
+  visualization_msgs
+  controller_manager_msgs
+  spinal
+  )
 
 ament_package()
