@@ -54,6 +54,7 @@ set(MODEL_LIB_DEPENDENCIES
 
 include_directories(
   include
+  test
   ${CMAKE_CURRENT_BINARY_DIR}/rosidl_generator_cpp
   ${orocos_kdl_INCLUDE_DIRS}
   ${urdfdom_headers_INCLUDE_DIRS}
@@ -154,6 +155,24 @@ ament_target_dependencies(interactive_marker_tf_broadcaster
 )
 target_link_libraries(interactive_marker_tf_broadcaster)
 
+# --- jacobian test------------------------------
+if(BUILD_TESTING)
+  find_package(ament_lint_auto REQUIRED)
+  ament_lint_auto_find_test_dependencies()
+  find_package(ament_cmake_gtest REQUIRED)
+
+  ament_add_gtest(numerical_jacobian_test
+    test/aerial_robot_model/numerical_jacobians.cpp
+  )
+  ament_target_dependencies(numerical_jacobian_test
+    rclcpp
+    sensor_msgs
+    spinal
+    )
+  target_link_libraries(numerical_jacobian_test
+    aerial_robot_model_base
+    )
+endif()
 # --- installation------------------------------
 install(
   TARGETS
