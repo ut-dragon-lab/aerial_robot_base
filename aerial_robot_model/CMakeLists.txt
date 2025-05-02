@@ -18,6 +18,7 @@ find_package(urdf REQUIRED)
 find_package(tf2_kdl REQUIRED)
 find_package(tf2_eigen REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(tf2_ros REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(tinyxml2_vendor REQUIRED)
@@ -28,12 +29,28 @@ find_package(kalman_filter REQUIRED)
 find_package(TinyXML2 REQUIRED)
 find_package(interactive_markers REQUIRED)
 
+# -- auto‐generate ROS interfaces --------------------------------------------
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/AddExtraModule.srv"
   DEPENDENCIES std_msgs geometry_msgs
 )
 ament_export_dependencies(rosidl_default_runtime)
 
+# --- common dependent packages -----------------------------------------------
+set(COMMON_DEPENDENCIES
+  rclcpp
+  geometry_msgs
+  sensor_msgs
+  std_srvs
+  tf2_ros
+  spinal
+)
+
+set(MODEL_LIB_DEPENDENCIES
+  ${COMMON_DEPENDENCIES}
+  pluginlib
+  rosidl_default_runtime
+)
 
 include_directories(
   include
@@ -43,6 +60,7 @@ include_directories(
   ${EIGEN3_INCLUDE_DIRS}
 )
 
+# --- aerial_robot_model_base library ---------------------------------------
 add_library(aerial_robot_model_base SHARED
   src/model/base_model/robot_model.cpp
   src/model/transformable_model/robot_model.cpp
@@ -52,35 +70,31 @@ add_library(aerial_robot_model_base SHARED
   src/model/transformable_model/statics.cpp
 )
 ament_target_dependencies(aerial_robot_model_base
-  rclcpp
+  ${COMMON_DEPENDENCIES}
+  urdf
   orocos_kdl
   kdl_parser
-  Eigen3
-  urdf
   tf2_kdl
   tf2_eigen
   tf2_geometry_msgs
-  geometry_msgs
-  sensor_msgs
   tinyxml2_vendor
   TinyXML2
 )
 target_link_libraries(aerial_robot_model_base
   ${orocos_kdl_LIBRARIES}
   )
-# aerial_robot_model_ros
+
+# --- aerial_robot_model_ros wrapper ----------------------------------------
 add_library(aerial_robot_model_ros
   src/model/base_model/robot_model_ros.cpp)
 ament_target_dependencies(aerial_robot_model_ros
-  rclcpp
-  pluginlib
-  rosidl_default_runtime
+  ${MODEL_LIB_DEPENDENCIES}
 )
 target_link_libraries(aerial_robot_model_ros
   aerial_robot_model_base
   )
 
-## pluginlib
+# --- robot_model plugin ----------------------------------------
 add_library(robot_model_pluginlib SHARED
   src/model/plugin/multirotor_robot_model.cpp
   src/model/plugin/underactuated_tilted_robot_model.cpp
@@ -91,37 +105,34 @@ ament_target_dependencies(robot_model_pluginlib
 target_link_libraries(robot_model_pluginlib
   aerial_robot_model_base
 )
-
 pluginlib_export_plugin_description_file(
   ${PROJECT_NAME}
   plugins/robot_model_plugins.xml
   )
 
+# --- servo_bridge ----------------------------------------
 add_library(servo_bridge src/servo_bridge/servo_bridge.cpp)
 ament_target_dependencies(servo_bridge
-  rclcpp
-  geometry_msgs
-  sensor_msgs
-  std_srvs
+  ${COMMON_DEPENDENCIES}
   controller_manager_msgs
-  spinal
   urdf
   kalman_filter
   tf2_eigen
   )
-# target_link_libraries(servo_bridge lpf_filter)
+
 add_executable(servo_bridge_node src/servo_bridge/servo_bridge_node.cpp)
 ament_target_dependencies(servo_bridge_node
-  rclcpp
-  std_srvs
-  geometry_msgs
-  sensor_msgs
+  ${COMMON_DEPENDENCIES}
   controller_manager_msgs
-  spinal
   )
-target_link_libraries (servo_bridge_node servo_bridge)
+target_link_libraries (servo_bridge_node
+  servo_bridge
+  )
 
-add_executable(rotor_tf_publisher src/utils/rotor_tf_publisher.cpp)
+# --- rotor_tf_publisher--------------------------------------------
+add_executable(rotor_tf_publisher
+  src/utils/rotor_tf_publisher.cpp
+  )
 ament_target_dependencies(rotor_tf_publisher
   rclcpp
   tf2_ros
@@ -132,7 +143,7 @@ ament_target_dependencies(rotor_tf_publisher
   )
 target_link_libraries(rotor_tf_publisher ${orocos_kdl_LIBRARIES})
 
-
+# --- interactive_marker_tf_broadcaster------------------------------
 add_executable(interactive_marker_tf_broadcaster src/utils/interactive_marker_tf_broadcaster.cpp)
 ament_target_dependencies(interactive_marker_tf_broadcaster
   rclcpp
@@ -143,32 +154,29 @@ ament_target_dependencies(interactive_marker_tf_broadcaster
 )
 target_link_libraries(interactive_marker_tf_broadcaster)
 
+# --- installation------------------------------
 install(
   TARGETS
-  aerial_robot_model_base
-  aerial_robot_model_ros
-  robot_model_pluginlib  
-  ARCHIVE   DESTINATION lib
-  LIBRARY   DESTINATION lib
-  RUNTIME   DESTINATION bin
+    aerial_robot_model_base
+    aerial_robot_model_ros
+    robot_model_pluginlib
+    servo_bridge
+    servo_bridge_node
+    rotor_tf_publisher
+    interactive_marker_tf_broadcaster
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 
 install(
-  DIRECTORY
-    include
-    launch
-    # script
-    plugins
+  DIRECTORY include/ plugins/ launch/
   DESTINATION share/${PROJECT_NAME}
   USE_SOURCE_PERMISSIONS
-  )
-
-install(TARGETS rotor_tf_publisher interactive_marker_tf_broadcaster
-  servo_bridge_node
-  DESTINATION lib/${PROJECT_NAME}
 )
 
-ament_export_libraries(aerial_robot_model_base # robot_model_pluginlib
+ament_export_libraries(aerial_robot_model_base
+  # robot_model_pluginlib
   )
 ament_export_include_directories(include)
 ament_export_dependencies(
