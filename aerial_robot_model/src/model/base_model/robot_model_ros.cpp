@@ -1,0 +1,111 @@
+#include <tf2_kdl/tf2_kdl.hpp>
+
+#include "aerial_robot_model/model/aerial_robot_model_ros.h"
+
+namespace aerial_robot_model {
+
+RobotModelRos::RobotModelRos(const rclcpp::NodeOptions& options)
+    : Node("robot_model_ros", options),
+      tf_broadcaster_(*this),
+      static_broadcaster_(*this),
+      // pluginlib: package name, base class
+      robot_model_loader_("aerial_robot_model", "aerial_robot_model::RobotModel") {
+  // 1) Declare & read the tf_prefix parameter
+  this->declare_parameter<std::string>("tf_prefix", "");
+  this->get_parameter("tf_prefix", tf_prefix_);
+
+  // 2) Load the robot‐model plugin
+  std::string plugin_name;
+  if (this->get_parameter("robot_model_plugin_name", plugin_name)) {
+    try {
+      robot_model_ = robot_model_loader_.createSharedInstance(plugin_name);
+    } catch (const pluginlib::PluginlibException& ex) {
+      RCLCPP_ERROR(this->get_logger(), "Failed to load plugin '%s': %s", plugin_name.c_str(), ex.what());
+      // fallback to default
+      robot_model_ = std::make_shared<RobotModel>();
+    }
+  } else {
+    RCLCPP_ERROR(this->get_logger(), "Parameter 'robot_model_plugin_name' not set; using default RobotModel");
+    robot_model_ = std::make_shared<RobotModel>();
+  }
+
+  // 3) If model is fixed, publish a single static transform
+  if (robot_model_->isModelFixed()) {
+    auto tf = robot_model_->getCog<geometry_msgs::msg::TransformStamped>();
+    tf.header.stamp = this->now();
+
+    // prepend prefix if given
+    auto root_frame =
+        tf_prefix_.empty() ? robot_model_->getRootFrameName() : tf_prefix_ + "/" + robot_model_->getRootFrameName();
+    tf.header.frame_id = root_frame;
+
+    auto cog_frame = tf_prefix_.empty() ? "cog" : tf_prefix_ + "/cog";
+    tf.child_frame_id = cog_frame;
+
+    static_broadcaster_.sendTransform(tf);
+
+  } else {
+    // 4) Otherwise subscribe to joint_states and broadcast CoG dynamically
+    joint_state_sub_ = this->create_subscription<sensor_msgs::msg::JointState>(
+        "joint_states", rclcpp::SystemDefaultsQoS(),
+        std::bind(&RobotModelRos::jointStateCallback, this, std::placeholders::_1));
+  }
+
+  // 5) Advertise the add_extra_module service
+  add_extra_module_srv_ = this->create_service<aerial_robot_model::srv::AddExtraModule>(
+      "add_extra_module", std::bind(&RobotModelRos::addExtraModuleCallback, this, std::placeholders::_1,
+                                    std::placeholders::_2, std::placeholders::_3));
+}
+
+void RobotModelRos::jointStateCallback(const sensor_msgs::msg::JointState::SharedPtr msg) {
+  // cache the latest JointState
+  joint_state_ = *msg;
+
+  // update internal model
+  robot_model_->updateRobotModel(*msg);
+
+  // get new CoG pose and broadcast
+  auto tf = robot_model_->getCog<geometry_msgs::msg::TransformStamped>();
+  tf.header = msg->header;
+
+  auto root_frame =
+      tf_prefix_.empty() ? robot_model_->getRootFrameName() : tf_prefix_ + "/" + robot_model_->getRootFrameName();
+  tf.header.frame_id = root_frame;
+
+  auto cog_frame = tf_prefix_.empty() ? "cog" : tf_prefix_ + "/cog";
+  tf.child_frame_id = cog_frame;
+
+  tf_broadcaster_.sendTransform(tf);
+}
+
+void RobotModelRos::addExtraModuleCallback(const std::shared_ptr<rmw_request_id_t> /*req_id*/,
+                                           const std::shared_ptr<aerial_robot_model::srv::AddExtraModule::Request> req,
+                                           std::shared_ptr<aerial_robot_model::srv::AddExtraModule::Response> res) {
+  switch (req->action) {
+    case aerial_robot_model::srv::AddExtraModule::Request::ADD: {
+      // build KDL::Frame from the incoming transform
+      geometry_msgs::msg::TransformStamped ts;
+      ts.transform = req->transform;
+      KDL::Frame f = tf2::transformToKDL(ts);
+      // build inertia
+      KDL::RigidBodyInertia rbi(req->inertia.m, KDL::Vector(req->inertia.com.x, req->inertia.com.y, req->inertia.com.z),
+                                KDL::RotationalInertia(req->inertia.ixx, req->inertia.iyy, req->inertia.izz,
+                                                       req->inertia.ixy, req->inertia.ixz, req->inertia.iyz));
+
+      res->status = robot_model_->addExtraModule(req->module_name, req->parent_link_name, f, rbi);
+      break;
+    }
+    case aerial_robot_model::srv::AddExtraModule::Request::REMOVE: {
+      res->status = robot_model_->removeExtraModule(req->module_name);
+      break;
+    }
+    default: {
+      RCLCPP_WARN(this->get_logger(), "[add_extra_module] invalid action %d", req->action);
+      res->status = false;
+      break;
+    }
+  }
+  // no return value; 'status' field carries the result
+}
+
+}  // namespace aerial_robot_model

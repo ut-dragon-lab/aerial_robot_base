@@ -37,6 +37,7 @@ ament_export_dependencies(rosidl_default_runtime)
 
 include_directories(
   include
+  ${CMAKE_CURRENT_BINARY_DIR}/rosidl_generator_cpp
   ${orocos_kdl_INCLUDE_DIRS}
   ${urdfdom_headers_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}
@@ -66,7 +67,18 @@ ament_target_dependencies(aerial_robot_model_base
 )
 target_link_libraries(aerial_robot_model_base
   ${orocos_kdl_LIBRARIES}
+  )
+# aerial_robot_model_ros
+add_library(aerial_robot_model_ros
+  src/model/base_model/robot_model_ros.cpp)
+ament_target_dependencies(aerial_robot_model_ros
+  rclcpp
+  pluginlib
+  rosidl_default_runtime
 )
+target_link_libraries(aerial_robot_model_ros
+  aerial_robot_model_base
+  )
 
 ## pluginlib
 add_library(robot_model_pluginlib SHARED
@@ -133,8 +145,9 @@ target_link_libraries(interactive_marker_tf_broadcaster)
 
 install(
   TARGETS
-    aerial_robot_model_base
-    # robot_model_pluginlib
+  aerial_robot_model_base
+  aerial_robot_model_ros
+  robot_model_pluginlib  
   ARCHIVE   DESTINATION lib
   LIBRARY   DESTINATION lib
   RUNTIME   DESTINATION bin
@@ -150,8 +163,8 @@ install(
   USE_SOURCE_PERMISSIONS
   )
 
-install(TARGETS # rotor_tf_publisher interactive_marker_tf_broadcaster
-  # servo_bridge_node
+install(TARGETS rotor_tf_publisher interactive_marker_tf_broadcaster
+  servo_bridge_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
