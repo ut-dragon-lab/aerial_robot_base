@@ -5,28 +5,28 @@
 
 using namespace std::chrono_literals;
 
-AerialRobotCore::AerialRobotCore() : Node("aerial_robot_core") {
+AerialRobotCore::AerialRobotCore(rclcpp::Node::SharedPtr node) : node_(node) {
   // declare parameters
-  this->declare_parameter<bool>("param_verbose", true);
-  this->declare_parameter<double>("main_rate", 1.0);
+  node_->declare_parameter<bool>("param_verbose", true);
+  node_->declare_parameter<double>("main_rate", 1.0);
   // get parameters
-  bool param_verbose = this->get_parameter("param_verbose").as_bool();
-  double main_rate = this->get_parameter("main_rate").as_double();
+  bool param_verbose = node_->get_parameter("param_verbose").as_bool();
+  double main_rate = node_->get_parameter("main_rate").as_double();
 
   if (param_verbose) {
-    RCLCPP_INFO(this->get_logger(), "%s: main_rate is %f", this->get_namespace(), main_rate);
+    RCLCPP_INFO(node_->get_logger(), "%s: main_rate is %f", node_->get_namespace(), main_rate);
   }
 
   if (main_rate <= 0.0) {
-    RCLCPP_ERROR(this->get_logger(), "main rate is negative or zero, cannot run the main timer");
+    RCLCPP_ERROR(node_->get_logger(), "main rate is negative or zero, cannot run the main timer");
   } else {
     // create timer
     auto period = std::chrono::duration<double>(1.0 / main_rate);
-    main_timer_ = this->create_wall_timer(period, std::bind(&AerialRobotCore::mainFunc, this));
+    main_timer_ = node_->create_wall_timer(period, std::bind(&AerialRobotCore::mainFunc, this));
   }
 
   // for debug
-  debug_pub_ = this->create_publisher<std_msgs::msg::String>("debug_topic", 10);
+  debug_pub_ = node_->create_publisher<std_msgs::msg::String>("debug_topic", 10);
 }
 
 AerialRobotCore::~AerialRobotCore() {
@@ -40,8 +40,8 @@ void AerialRobotCore::mainFunc() {
   // for debug
   std_msgs::msg::String msg;
   std::stringstream ss;
-  ss << "Debug message at time " << this->now().seconds();
+  ss << "Debug message at time " << node_->now().seconds();
   msg.data = ss.str();
   debug_pub_->publish(msg);
-  RCLCPP_INFO(this->get_logger(), "Published: '%s'", msg.data.c_str());
+  RCLCPP_INFO(node_->get_logger(), "Published: '%s'", msg.data.c_str());
 }
