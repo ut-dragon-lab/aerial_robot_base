@@ -31,6 +31,8 @@
   <depend>urdfdom_headers</depend>
   <depend>visualization_msgs</depend>
   <depend>tinyxml2_vendor</depend>
+  <depend>joint_state_publisher_gui</depend>
+  <depend>robot_state_publisher</depend>
 
   <!-- service/message generation support -->
   <build_export_depend>rosidl_default_runtime</build_export_depend>
