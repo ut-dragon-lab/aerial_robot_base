@@ -13,6 +13,9 @@ AerialRobotCore::AerialRobotCore(rclcpp::Node::SharedPtr node) : node_(node) {
   bool param_verbose = node_->get_parameter("param_verbose").as_bool();
   double main_rate = node_->get_parameter("main_rate").as_double();
 
+  robot_model_ros_ = std::make_shared<aerial_robot_model::RobotModelRos>(node_);
+  auto robot_model = robot_model_ros_->getRobotModel();
+
   if (param_verbose) {
     RCLCPP_INFO(node_->get_logger(), "%s: main_rate is %f", node_->get_namespace(), main_rate);
   }
@@ -25,8 +28,8 @@ AerialRobotCore::AerialRobotCore(rclcpp::Node::SharedPtr node) : node_(node) {
     main_timer_ = node_->create_wall_timer(period, std::bind(&AerialRobotCore::mainFunc, this));
   }
 
-  // for debug
-  debug_pub_ = node_->create_publisher<std_msgs::msg::String>("debug_topic", 10);
+  // // for debug
+  // debug_pub_ = node_->create_publisher<std_msgs::msg::String>("debug_topic", 10);
 }
 
 AerialRobotCore::~AerialRobotCore() {
@@ -42,6 +45,6 @@ void AerialRobotCore::mainFunc() {
   std::stringstream ss;
   ss << "Debug message at time " << node_->now().seconds();
   msg.data = ss.str();
-  debug_pub_->publish(msg);
-  RCLCPP_INFO(node_->get_logger(), "Published: '%s'", msg.data.c_str());
+  // debug_pub_->publish(msg);
+  // RCLCPP_INFO(node_->get_logger(), "Published: '%s'", msg.data.c_str());
 }
