@@ -13,13 +13,6 @@ Panels:
     Tree Height: 722
   - Class: rviz_common/Selection
     Name: Selection
-  - Class: rviz_common/ToolProperties
-    Expanded:
-      - /2D Pose Estimate1
-      - /2D Nav Goal1
-      - /Publish Point1
-    Name: Tool Properties
-    Splitter Ratio: 0.5886790156364441
   - Class: rviz_common/Views
     Expanded:
       - /Current View1
