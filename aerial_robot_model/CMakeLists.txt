@@ -10,6 +10,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
+find_package(rosidl_typesupport_cpp REQUIRED)
 find_package(orocos_kdl REQUIRED)
 find_package(kdl_parser REQUIRED)
 find_package(Eigen3 REQUIRED)
@@ -94,16 +95,25 @@ ament_target_dependencies(aerial_robot_model_ros
 target_link_libraries(aerial_robot_model_ros
   aerial_robot_model_base
   )
+target_include_directories(aerial_robot_model_ros
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+    )
+rosidl_target_interfaces(aerial_robot_model_ros
+  ${PROJECT_NAME}
+  "rosidl_typesupport_cpp"
+)  
 
 # --- robot_model plugin ----------------------------------------
-add_library(robot_model_pluginlib SHARED
+add_library(robot_model_plugin SHARED
   src/model/plugin/multirotor_robot_model.cpp
   src/model/plugin/underactuated_tilted_robot_model.cpp
 )
-ament_target_dependencies(robot_model_pluginlib
+ament_target_dependencies(robot_model_plugin
   pluginlib
 )
-target_link_libraries(robot_model_pluginlib
+target_link_libraries(robot_model_plugin
   aerial_robot_model_base
 )
 pluginlib_export_plugin_description_file(
@@ -173,12 +183,22 @@ if(BUILD_TESTING)
     aerial_robot_model_base
     )
 endif()
+
 # --- installation------------------------------
 install(
   TARGETS
     aerial_robot_model_base
     aerial_robot_model_ros
-    robot_model_pluginlib
+    robot_model_plugin
+    # EXPORT export_aerial_robot_model
+  EXPORT export_${PROJECT_NAME}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+  )
+
+install(
+  TARGETS
     servo_bridge
     servo_bridge_node
     rotor_tf_publisher
@@ -192,12 +212,20 @@ install(
   DIRECTORY include/ plugins/ launch/
   DESTINATION share/${PROJECT_NAME}
   USE_SOURCE_PERMISSIONS
+  )
+
+install(
+  DIRECTORY include/
+  DESTINATION include
 )
 
-ament_export_libraries(aerial_robot_model_base
-  # robot_model_pluginlib
+ament_export_libraries(
+  aerial_robot_model_base
+  aerial_robot_model_ros
   )
 ament_export_include_directories(include)
+ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
+# ament_export_targets(export_aerial_robot_model HAS_LIBRARY_TARGET)
 ament_export_dependencies(
   rclcpp
   pluginlib
