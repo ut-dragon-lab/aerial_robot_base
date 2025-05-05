@@ -49,10 +49,10 @@
 
 namespace aerial_robot_model {
 
-class RobotModelRos : public rclcpp::Node {
+class RobotModelRos {
  public:
-  RobotModelRos(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
-  ~RobotModelRos() override = default;
+  RobotModelRos(rclcpp::Node::SharedPtr node);
+  ~RobotModelRos() = default;
 
   /// Return the last‐received joint state
   sensor_msgs::msg::JointState getJointState() const { return joint_state_; }
@@ -61,6 +61,8 @@ class RobotModelRos : public rclcpp::Node {
   std::shared_ptr<aerial_robot_model::RobotModel> getRobotModel() const { return robot_model_; }
 
  private:
+  // ros node
+  rclcpp::Node::SharedPtr node_;
   // callback for incoming JointState messages
   void jointStateCallback(const sensor_msgs::msg::JointState::SharedPtr msg);
 

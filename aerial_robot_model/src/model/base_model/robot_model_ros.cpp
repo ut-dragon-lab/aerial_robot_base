@@ -4,35 +4,38 @@
 
 namespace aerial_robot_model {
 
-RobotModelRos::RobotModelRos(const rclcpp::NodeOptions& options)
-    : Node("robot_model_ros", options),
-      tf_broadcaster_(*this),
-      static_broadcaster_(*this),
+RobotModelRos::RobotModelRos(rclcpp::Node::SharedPtr node)
+    : node_(node),
+      tf_broadcaster_(*node_),
+      static_broadcaster_(*node_),
       // pluginlib: package name, base class
       robot_model_loader_("aerial_robot_model", "aerial_robot_model::RobotModel") {
   // 1) Declare & read the tf_prefix parameter
-  this->declare_parameter<std::string>("tf_prefix", "");
-  this->get_parameter("tf_prefix", tf_prefix_);
+  node_->declare_parameter<std::string>("tf_prefix", "");
+  node_->get_parameter("tf_prefix", tf_prefix_);
 
   // 2) Load the robot‐model plugin
   std::string plugin_name;
-  if (this->get_parameter("robot_model_plugin_name", plugin_name)) {
+  if (node_->get_parameter("robot_model_plugin_name", plugin_name)) {
     try {
       robot_model_ = robot_model_loader_.createSharedInstance(plugin_name);
     } catch (const pluginlib::PluginlibException& ex) {
-      RCLCPP_ERROR(this->get_logger(), "Failed to load plugin '%s': %s", plugin_name.c_str(), ex.what());
+      RCLCPP_ERROR(node_->get_logger(), "Failed to load plugin '%s': %s", plugin_name.c_str(), ex.what());
       // fallback to default
       robot_model_ = std::make_shared<RobotModel>();
     }
   } else {
-    RCLCPP_ERROR(this->get_logger(), "Parameter 'robot_model_plugin_name' not set; using default RobotModel");
+    RCLCPP_ERROR(node_->get_logger(), "Parameter 'robot_model_plugin_name' not set; using default RobotModel");
     robot_model_ = std::make_shared<RobotModel>();
   }
+
+  // initialize robot model plugin
+  robot_model_->initialize(node_);
 
   // 3) If model is fixed, publish a single static transform
   if (robot_model_->isModelFixed()) {
     auto tf = robot_model_->getCog<geometry_msgs::msg::TransformStamped>();
-    tf.header.stamp = this->now();
+    tf.header.stamp = node_->now();
 
     // prepend prefix if given
     auto root_frame =
@@ -46,13 +49,13 @@ RobotModelRos::RobotModelRos(const rclcpp::NodeOptions& options)
 
   } else {
     // 4) Otherwise subscribe to joint_states and broadcast CoG dynamically
-    joint_state_sub_ = this->create_subscription<sensor_msgs::msg::JointState>(
+    joint_state_sub_ = node_->create_subscription<sensor_msgs::msg::JointState>(
         "joint_states", rclcpp::SystemDefaultsQoS(),
         std::bind(&RobotModelRos::jointStateCallback, this, std::placeholders::_1));
   }
 
   // 5) Advertise the add_extra_module service
-  add_extra_module_srv_ = this->create_service<aerial_robot_model::srv::AddExtraModule>(
+  add_extra_module_srv_ = node_->create_service<aerial_robot_model::srv::AddExtraModule>(
       "add_extra_module", std::bind(&RobotModelRos::addExtraModuleCallback, this, std::placeholders::_1,
                                     std::placeholders::_2, std::placeholders::_3));
 }
@@ -100,7 +103,7 @@ void RobotModelRos::addExtraModuleCallback(const std::shared_ptr<rmw_request_id_
       break;
     }
     default: {
-      RCLCPP_WARN(this->get_logger(), "[add_extra_module] invalid action %d", req->action);
+      RCLCPP_WARN(node_->get_logger(), "[add_extra_module] invalid action %d", req->action);
       res->status = false;
       break;
     }
