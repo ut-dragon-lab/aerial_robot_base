@@ -39,16 +39,13 @@ int main(int argc, char* argv[]) {
   {
     rclcpp::init(argc, argv);
 
-    // NodeOptions を設定して Node を作成
     rclcpp::NodeOptions options;
     options.allow_undeclared_parameters(true);
     options.automatically_declare_parameters_from_overrides(true);
     auto ros_node = std::make_shared<rclcpp::Node>("servo_bridge", options);
 
-    // ServoBridge のインスタンスを作成
     auto bridge = std::make_shared<ServoBridge>(ros_node);
 
-    // spin してコールバックを走らせ続ける
     rclcpp::spin(ros_node);
     rclcpp::shutdown();
     return 0;

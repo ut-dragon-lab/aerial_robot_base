@@ -13,10 +13,8 @@ using namespace std::chrono_literals;
 
 ServoBridge::ServoBridge(rclcpp::Node::SharedPtr node) : node_(node) {
   // 1) Simulation / mujoco flags
-  node_->declare_parameter<bool>("use_sim_time", false);
-  node_->get_parameter("use_sim_time", simulation_mode_);
-  node_->declare_parameter<bool>("use_mujoco", false);
-  node_->get_parameter("use_mujoco", use_mujoco_);
+  node_->get_parameter_or("use_sim_time", simulation_mode_, false);
+  node_->get_parameter_or("use_mujoco", use_mujoco_, false);
   if (use_mujoco_) {
     RCLCPP_WARN(node_->get_logger(), "use mujoco simulator; disabling ROS time");
     simulation_mode_ = false;
@@ -32,17 +30,15 @@ ServoBridge::ServoBridge(rclcpp::Node::SharedPtr node) : node_(node) {
 
   // 2) Load URDF
   std::string urdf_xml;
-  node_->declare_parameter<std::string>("robot_description", "");
-  node_->get_parameter("robot_description", urdf_xml);
+  node_->get_parameter_or("robot_description", urdf_xml, std::string(""));
   urdf::Model urdf_model;
   if (!urdf_model.initString(urdf_xml)) {
     RCLCPP_ERROR(node_->get_logger(), "Failed to parse robot_description URDF");
   }
 
   // 3) Groups (always include "common")
-  node_->declare_parameter<std::vector<std::string>>("servo_controller.groups", std::vector<std::string>{"common"});
-  std::vector<std::string> groups;
-  node_->get_parameter("servo_controller.groups", groups);
+  auto groups =
+      node_->get_parameter_or<std::vector<std::string>>("servo_controller.groups", std::vector<std::string>{"common"});
   if (std::find(groups.begin(), groups.end(), "common") == groups.end()) {
     groups.insert(groups.begin(), "common");
   }
@@ -50,32 +46,37 @@ ServoBridge::ServoBridge(rclcpp::Node::SharedPtr node) : node_(node) {
   // 4) Per‐group setup
   for (const auto& group : groups) {
     const std::string base = "servo_controller." + group + ".";
-
-    // parameters (with ROS1互換のデフォルト)
-    bool no_real = node_->declare_parameter<bool>(base + "no_real_state", false);
+    // parameters
+    bool no_real;
+    node_->get_parameter_or(base + "no_real_state", no_real, false);
     no_real_state_flags_[group] = no_real;
 
-    std::string state_sub_topic =
-        node_->declare_parameter<std::string>(base + "state_sub_topic", (group == "common" ? "servo/states" : ""));
-    std::string pos_pub_topic =
-        node_->declare_parameter<std::string>(base + "pos_pub_topic", (group == "common" ? "servo/target_states" : ""));
-    std::string torque_pub_topic = node_->declare_parameter<std::string>(
-        base + "torque_pub_topic", (group == "common" ? "servo/target_current" : ""));
-    std::string enable_pub_topic = node_->declare_parameter<std::string>(
-        base + "servo_enable_pub_topic", (group == "common" ? "servo/torque_enable" : ""));
-
-    int angle_sgn = node_->declare_parameter<int>(base + "angle_sgn", 1);
-    int zero_offset = node_->declare_parameter<int>(base + "zero_point_offset", 0);
-    double angle_scale = node_->declare_parameter<double>(base + "angle_scale", 1.0);
-    double torque_scale = node_->declare_parameter<double>(base + "torque_scale", 1.0);
-    bool filter_flag = node_->declare_parameter<bool>(base + "filter_flag", false);
-    double sample_freq = node_->declare_parameter<double>(base + "sample_freq", 0.0);
-    double cutoff_freq = node_->declare_parameter<double>(base + "cutoff_freq", 0.0);
-
-    // simulation‐only defaults (ROS1 互換)
-    std::string sim_type = node_->declare_parameter<std::string>(base + "simulation.type", "");
-    std::string sim_pid = node_->declare_parameter<std::string>(base + "simulation.pid", "");
-    double sim_init = node_->declare_parameter<double>(base + "simulation.init_value", 0.0);
+    std::string state_sub_topic;
+    node_->get_parameter_or(base + "state_sub_topic", state_sub_topic,
+                            std::string(group == "common" ? "servo/states" : ""));
+    std::string pos_pub_topic;
+    node_->get_parameter_or(base + "pos_pub_topic", pos_pub_topic,
+                            std::string(group == "common" ? "servo/target_states" : ""));
+    std::string torque_pub_topic;
+    node_->get_parameter_or(base + "torque_pub_topic", torque_pub_topic,
+                            std::string(group == "common" ? "servo/target_current" : ""));
+    std::string enable_pub_topic;
+    node_->get_parameter_or(base + "servo_enable_pub_topic", enable_pub_topic,
+                            std::string(group == "common" ? "servo/torque_enable" : ""));
+    int angle_sgn;
+    node_->get_parameter_or(base + "angle_sgn", angle_sgn, 1);
+    int zero_offset;
+    node_->get_parameter_or(base + "zero_point_offset", zero_offset, 0);
+    double angle_scale;
+    node_->get_parameter_or(base + "angle_scale", angle_scale, 1.0);
+    double torque_scale;
+    node_->get_parameter_or(base + "torque_scale", torque_scale, 1.0);
+    bool filter_flag;
+    node_->get_parameter_or(base + "filter_flag", filter_flag, false);
+    double sample_freq;
+    node_->get_parameter_or(base + "sample_freq", sample_freq, 0.0);
+    double cutoff_freq;
+    node_->get_parameter_or(base + "cutoff_freq", cutoff_freq, 0.0);
 
     //--- common‐group interfaces ---
     if (!state_sub_topic.empty()) {
@@ -103,41 +104,38 @@ ServoBridge::ServoBridge(rclcpp::Node::SharedPtr node) : node_(node) {
         });
 
     //--- per‐servo controllers in this group ---
-    node_->declare_parameter<std::vector<std::string>>(base + "controllers", std::vector<std::string>{});
     std::vector<std::string> controllers;
-    node_->get_parameter(base + "controllers", controllers);
+    node_->get_parameter_or(base + "controllers", controllers, std::vector<std::string>{});
 
     ServoGroupHandler handler;
     for (const auto& ctrl : controllers) {
       const std::string cbase = base + "controllers." + ctrl + ".";
-
-      // declare & read back servo‐specific params
-      node_->declare_parameter<std::string>(cbase + "name", "");
-      node_->declare_parameter<int>(cbase + "id", 0);
-      node_->declare_parameter<int>(cbase + "angle_sgn", 1);
-      node_->declare_parameter<int>(cbase + "zero_point_offset", 0);
-      node_->declare_parameter<double>(cbase + "angle_scale", 1.0);
-      node_->declare_parameter<double>(cbase + "torque_scale", 1.0);
-      node_->declare_parameter<bool>(cbase + "filter_flag", false);
-      node_->declare_parameter<double>(cbase + "sample_freq", 0.0);
-      node_->declare_parameter<double>(cbase + "cutoff_freq", 0.0);
-
       std::string name;
       int id, a_sgn, z_off;
       double a_scale, t_scale, s_freq, c_freq;
       bool f_flag;
-      node_->get_parameter(cbase + "name", name);
-      node_->get_parameter(cbase + "id", id);
-      node_->get_parameter(cbase + "angle_sgn", a_sgn);
-      node_->get_parameter(cbase + "zero_point_offset", z_off);
-      node_->get_parameter(cbase + "angle_scale", a_scale);
-      node_->get_parameter(cbase + "torque_scale", t_scale);
-      node_->get_parameter(cbase + "filter_flag", f_flag);
-      node_->get_parameter(cbase + "sample_freq", s_freq);
-      node_->get_parameter(cbase + "cutoff_freq", c_freq);
+      node_->get_parameter_or(cbase + "name", name, std::string(""));
+      node_->get_parameter_or(cbase + "id", id), 0;
+      node_->get_parameter_or(cbase + "angle_sgn", a_sgn, 1);
+      node_->get_parameter_or(cbase + "zero_point_offset", z_off, 0);
+      node_->get_parameter_or(cbase + "angle_scale", a_scale, 1.0);
+      node_->get_parameter_or(cbase + "torque_scale", t_scale, 1.0);
+      node_->get_parameter_or(cbase + "filter_flag", f_flag, false);
+      node_->get_parameter_or(cbase + "sample_freq", s_freq, 0.0);
+      node_->get_parameter_or(cbase + "cutoff_freq", c_freq, 0.0);
 
-      // URDF から joint limit
+      // get joint info from URDF
       auto j = urdf_model.getJoint(name);
+      if (!j) {
+        RCLCPP_ERROR(node_->get_logger(), "ServoBridge: Joint '%s' not found in URDF, skipping controller setup",
+                     name.c_str());
+        continue;
+      }
+      if (!j->limits) {
+        RCLCPP_ERROR(node_->get_logger(), "ServoBridge: Joint '%s' has no <limit> element in URDF, skipping",
+                     name.c_str());
+        continue;
+      }
       double upper = j->limits->upper;
       double lower = j->limits->lower;
 
@@ -145,14 +143,13 @@ ServoBridge::ServoBridge(rclcpp::Node::SharedPtr node) : node_(node) {
                                                             !no_real_state_flags_.at(group), f_flag, s_freq, c_freq));
 
       if (simulation_mode_) {
-        // ROS 1版と同様に gazebo controller のロード／起動＆
-        // servo_target_pos_sim_pubs_ の初期設定を行ってください
+        // TODO
       }
     }
     servos_handler_[group] = std::move(handler);
   }
 
-  // 5) joint_states publisher （simulation時は不要）
+  // 5) joint_states publisher
   if (!simulation_mode_) {
     servo_states_pub_ =
         node_->create_publisher<sensor_msgs::msg::JointState>("joint_states", rclcpp::SystemDefaultsQoS());
@@ -171,7 +168,6 @@ ServoBridge::ServoBridge(rclcpp::Node::SharedPtr node) : node_(node) {
 // --- servoStatesCallback ---------------------------------------------------
 void ServoBridge::servoStatesCallback(const spinal::msg::ServoStates::ConstSharedPtr state_msg,
                                       const std::string& servo_group_name) {
-  // 1) "common" 以外はそのグループだけ更新して終了
   if (servo_group_name != "common") {
     auto& handlers = servos_handler_[servo_group_name];
     for (const auto& it : state_msg->servos) {
@@ -187,15 +183,13 @@ void ServoBridge::servoStatesCallback(const spinal::msg::ServoStates::ConstShare
     return;
   }
 
-  // 2) "common" グループは、各サブグループを検索して更新
   for (const auto& it : state_msg->servos) {
     for (auto& [group, handlers] : servos_handler_) {
-      // real state を使わない設定ならスキップ
       if (no_real_state_flags_.at(group)) {
         RCLCPP_DEBUG(node_->get_logger(), "%s: no_real_state, skip", group.c_str());
         continue;
       }
-      // 独立グループで専用に登録されていれば common では処理しない
+
       if (servo_states_subs_.count(group)) {
         RCLCPP_DEBUG(node_->get_logger(), "%s: has own state sub, skip common", group.c_str());
         continue;
@@ -211,7 +205,6 @@ void ServoBridge::servoStatesCallback(const spinal::msg::ServoStates::ConstShare
     }
   }
 
-  // 3) 最後にまとめて joint_states トピックに publish
   auto out = sensor_msgs::msg::JointState();
   out.header.stamp = node_->now();
   for (const auto& [group, handlers] : servos_handler_) {
