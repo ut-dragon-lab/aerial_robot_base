@@ -6,8 +6,9 @@
   <description>
     URDF model for the mini quadrotor.
   </description>
-  <maintainer email="your_email@example.com">Your Name</maintainer>
-  <license>Apache-2.0</license>
+  <maintainer email="TODO@TODO.com">TODO</maintainer>
+  <author email="j-sugihara@dragon.t.u-tokyo.ac.jp">Junichiro Sugihara</author>
+  <license>BSD</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 

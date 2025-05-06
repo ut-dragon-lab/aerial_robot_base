@@ -2,7 +2,7 @@
 /*********************************************************************
  * Software License Agreement (BSD License)
  *
- *  Copyright (c) 2018, JSK Lab
+ *  Copyright (c) 2025, DRAGON Laboratory, The University of Tokyo
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
