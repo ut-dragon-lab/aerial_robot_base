@@ -17,21 +17,48 @@ from launch_ros.parameter_descriptions import ParameterValue, ParameterFile
 def generate_launch_description():
 
     # --- launch arguments ---
-    headless        = LaunchConfiguration('headless')
-    need_jsp        = LaunchConfiguration('need_joint_state')
-    model_options   = LaunchConfiguration('model_options')
-    robot_model_pkg = LaunchConfiguration('robot_model')
-    robot_ns        = LaunchConfiguration('robot_ns')
+    arg_defs = [
+        ('headless','false', 'Disable RViz if true'),
+        ('need_joint_state','true', 'Use joint_state_publisher_gui'),
+        ('model_options', '', 'Extra xacro arguments'),
+        ('robot_model', 'hydrus', 'Name of robot package (e.g. mi)'),
+        ('robot_ns', 'hydrus', 'ROS namespace for this robot'),
+        ('onboards_model', 'default_mode_201907', 'robot version'),
+        ('simulation', 'true', 'simulation flag'),
+        ('robot_model_rviz',
+         [ LaunchConfiguration('robot_model'),
+           TextSubstitution(text='.rviz') ],
+         'RViz config filename under config/'
+        ),
+    ]
+
+    declare_args = [
+        DeclareLaunchArgument(name, default_value=default, description=desc)
+        for name, default, desc in arg_defs
+    ]
+
+    # 3. LaunchConfiguration のまとめ取得
+    headless         = LaunchConfiguration('headless')
+    need_jsp         = LaunchConfiguration('need_joint_state')
+    model_options    = LaunchConfiguration('model_options')
+    robot_model_pkg  = LaunchConfiguration('robot_model')
+    robot_ns         = LaunchConfiguration('robot_ns')
     robot_model_rviz = LaunchConfiguration('robot_model_rviz')
-    onboards_model = LaunchConfiguration('default_mode_201907')
+    onboards_model   = LaunchConfiguration('onboards_model')
+    simulation       = LaunchConfiguration('simulation')
 
     # --- robot_description parameter (xacro → URDF) ---
+    xacro_type = None
+    if simulation:
+        xacro_type = 'robot.gazebo.xacro'
+    else:
+        xacro_type = 'robot.urdf.xacro'
     urdf_xacro = PathJoinSubstitution([
         FindPackageShare(robot_model_pkg),
         'robots',
         'quad',
         'default_mode_201907',
-        'robot.urdf.xacro'
+        xacro_type
     ])
 
     servo_param_file = PathJoinSubstitution([
@@ -79,28 +106,8 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        # arguments
-        DeclareLaunchArgument('headless',        default_value='false',
-                               description='Disable RViz if true'),
-        DeclareLaunchArgument('need_joint_state',default_value='true',
-                               description='Use joint_state_publisher_gui'),
-        DeclareLaunchArgument('model_options',   default_value='',
-                               description='Extra xacro arguments'),
-        DeclareLaunchArgument('robot_model',     description='Name of robot package (e.g. mini_quadrotor)'),
-        DeclareLaunchArgument('robot_ns',        description='ROS namespace for this robot'),
-        DeclareLaunchArgument(
-            'robot_model_rviz',
-            default_value=[ LaunchConfiguration('robot_model'),
-                            TextSubstitution(text='.rviz') ],
-            description='RViz config filename under config/'
-        ),
-        DeclareLaunchArgument(
-            'default_mode_201907',
-            default_value='',
-            description='robot version'
-        ),
-
-        # core
+        *declare_args,
+        
         Node(
             package='aerial_robot_core',
             executable='aerial_robot_core_node',
@@ -142,8 +149,7 @@ def generate_launch_description():
                 {'use_sim_time': False, 'tf_prefix': robot_ns}
             ]
         ),
-
-        # rotor_tf_publisher (fallback)
+        
         Node(
             package='aerial_robot_model',
             executable='rotor_tf_publisher',
@@ -152,10 +158,7 @@ def generate_launch_description():
             condition=UnlessCondition(need_jsp),
             parameters=[{'tf_prefix': robot_ns}]
         ),
-
-        log_rviz,
-
-        # RViz2
+        
         Node(
             package='rviz2',
             executable='rviz2',
