@@ -9,6 +9,11 @@ find_package(ament_cmake REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(rclcpp REQUIRED)
+
+set(SPINAL_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/mcu_project/lib/My_Lib)
+
+add_definitions(-DSIMULATION)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/PMatrixPseudoInverseUnit.msg"
@@ -49,7 +54,49 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/MagDeclination.srv"
   "srv/SetDirectServoConfig.srv"
   DEPENDENCIES std_msgs geometry_msgs
-)
+  )
+
+add_library(spinal_math
+  ${SPINAL_DIRS}/math/AP_Math.cpp
+  ${SPINAL_DIRS}/math/matrix3.cpp
+  ${SPINAL_DIRS}/math/vector2.cpp
+  ${SPINAL_DIRS}/math/vector3.cpp
+  ${SPINAL_DIRS}/math/quaternion.cpp
+  ${SPINAL_DIRS}/math/location.cpp
+  )
+
+add_library(spinal_state_estimation INTERFACE)
+target_include_directories(spinal_state_estimation
+  INTERFACE
+  $<BUILD_INTERFACE:${SPINAL_DIRS}>
+  $<INSTALL_INTERFACE:include/My_Lib>
+  )
+target_link_libraries(spinal_state_estimation
+  INTERFACE
+  rclcpp::rclcpp
+  spinal_math
+  )
+
+
+install(
+  TARGETS spinal_state_estimation spinal_math
+  # EXPORT export_aerial_robot_model
+  EXPORT export_${PROJECT_NAME}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+  )
+
+
+install(
+  DIRECTORY ${SPINAL_DIRS}/
+  DESTINATION include/My_Lib
+  FILES_MATCHING PATTERN "*.h"
+  )
+
+
+ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
+ament_export_include_directories(include/My_Lib)
 
 ament_export_dependencies(rosidl_default_runtime)
 
