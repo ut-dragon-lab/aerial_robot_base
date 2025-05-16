@@ -11,13 +11,13 @@
 
 #include "definitions.h"
 #include "edc.h"
-#include "location.h"
 #include "matrix3.h"
 #include "polygon.h"
 #include "quaternion.h"
 #include "rotations.h"
 #include "vector2.h"
 #include "vector3.h"
+// #include "location.h"
 
 namespace ap {
 

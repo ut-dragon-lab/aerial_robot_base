@@ -13,6 +13,11 @@ find_package(rclcpp REQUIRED)
 
 set(SPINAL_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/mcu_project/lib/My_Lib)
 
+include_directories(
+  ${SPINAL_DIRS}
+)
+
+
 add_definitions(-DSIMULATION)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
@@ -62,8 +67,9 @@ add_library(spinal_math
   ${SPINAL_DIRS}/math/vector2.cpp
   ${SPINAL_DIRS}/math/vector3.cpp
   ${SPINAL_DIRS}/math/quaternion.cpp
-  ${SPINAL_DIRS}/math/location.cpp
+  # ${SPINAL_DIRS}/math/location.cpp
   )
+
 
 add_library(spinal_state_estimation INTERFACE)
 target_include_directories(spinal_state_estimation
