@@ -1,0 +1,10 @@
+<library path="libaerial_robot_hw_sim.so">
+  <class
+    name="aerial_robot_simulation::AerialRobotHwSim"
+    type="aerial_robot_simulation::AerialRobotHwSim"
+    base_class_type="hardware_interface::SystemInterface">
+    <description>
+      Spinal-based hardware interface for aerial robot simulation
+    </description>
+  </class>
+</library>

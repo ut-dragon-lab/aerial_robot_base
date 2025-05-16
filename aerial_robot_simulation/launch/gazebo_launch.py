@@ -1,21 +1,30 @@
 import os
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, ExecuteProcess, TimerAction, SetEnvironmentVariable, LogInfo, IncludeLaunchDescription
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, EnvironmentVariable, TextSubstitution
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, EnvironmentVariable, TextSubstitution, Command
 from launch_ros.substitutions import FindPackageShare, FindPackagePrefix
 from launch_ros.actions import Node
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from ament_index_python.packages import get_package_share_directory
+from ament_index_python.packages import get_package_share_directory, get_package_prefix
+from launch_ros.parameter_descriptions import ParameterValue
 
 def generate_launch_description():
     pkg_share   = get_package_share_directory('aerial_robot_simulation')
-    default_world = os.path.join(pkg_share, 'gazebo_model', 'world', 'empty.world')
+    pkg_prefix = get_package_prefix('aerial_robot_simulation')
+    ign_plugins_path = os.path.join(pkg_prefix, 'lib')
 
-    world_arg      = DeclareLaunchArgument('world',     default_value=default_world,    description='Ignition world file')
+    default_world = os.path.join(pkg_share, 'gazebo_model', 'world', 'empty.world')
+    desc_arg = DeclareLaunchArgument(
+        'robot_description_content',
+        default_value='',
+        description='URDF (xacro result) passed from bringup'
+    )
+    world_arg      = DeclareLaunchArgument('world_sdf_file',     default_value=default_world,    description='Ignition world file')
     robot_name_arg = DeclareLaunchArgument('robot_name', default_value='hydrus',       description='Entity name for spawn')
 
-    world        = LaunchConfiguration('world')
+    world        = LaunchConfiguration('world_sdf_file')
     robot_name   = LaunchConfiguration('robot_name')
+    robot_description_content = LaunchConfiguration('robot_description_content')
 
     robot_prefix = FindPackagePrefix(robot_name)
 
@@ -37,14 +46,31 @@ def generate_launch_description():
         ]
     )
 
+    # set_ign_plugin_path = SetEnvironmentVariable(
+    #     name='IGN_GAZEBO_SYSTEM_PLUGIN_PATH',
+    #     value=(ign_plugins_path +
+    #            os.pathsep +
+    #            os.environ.get('IGN_GAZEBO_SYSTEM_PLUGIN_PATH', ''))
+    # )
+
+    set_ign_plugin_path = SetEnvironmentVariable(
+        name='GZ_SIM_SYSTEM_PLUGIN_PATH',
+        value=[
+            ign_plugins_path,
+            os.pathsep,
+            EnvironmentVariable('GZ_SIM_SYSTEM_PLUGIN_PATH', default_value='')
+        ]
+    )    
+
+
     # 1) Start Gazebo ignition (without GUI)
     ign_server = ExecuteProcess(
         cmd=[
             'ign', 'gazebo',
-            '-r',                              # リプレイなしで即実行
-            '-s', 'libgazebo_ros_factory.so',  # ROS 2 プラグイン読み込み
+            '-r',                     
+            '-s', 'libgazebo_ros_factory.so',
             '-s', 'libgazebo_ros_init.so',
-            world                              # world ファイル
+            world
         ],
         output='screen'
     )
@@ -54,23 +80,7 @@ def generate_launch_description():
         package='ros_gz_bridge',
         executable='parameter_bridge',
         arguments=[
-            # 正しいマッピング形式: topic@gazebo_type@ros2_type
-            '/clock@rosgraph_msgs/msg/Clock@gz.msgs.Clock',
-
-            # IMU センサ
-            '/world/.*/link/.*/sensor/imu/imu'
-            '@sensor_msgs/msg/Imu'
-            '@gz.msgs.IMU',
-
-            # GPS (NavSatFix)
-            '/world/.*/link/.*/sensor/navsat/navsat'
-            '@sensor_msgs/msg/NavSatFix'
-            '@gz.msgs.NavSat',
-
-            # Mocap (モデル全体のPoseStamped)
-            '/world/.*/model/.*/pose'
-            '@geometry_msgs/msg/PoseStamped'
-            '@gz.msgs.Pose_V',
+            '/clock@rosgraph_msgs/msg/Clock[ignition.msgs.Clock'
         ],
         output='screen'
     )
@@ -100,9 +110,13 @@ def generate_launch_description():
         robot_name_arg,
         set_env,
         set_ign_resource_path,
+        set_ign_plugin_path,
+        # gz_sim,
         ign_server,
         clock_bridge,
         # gz_sim_launch,
         spawn_robot,
-        ign_client
+        ign_client,
+        # gz_sim,
+        # ros2_control_node
     ])

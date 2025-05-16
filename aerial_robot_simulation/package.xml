@@ -10,10 +10,25 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
   <depend>rclcpp</depend>
+  <depend>rclcpp_lifecycle</depend>
   <depend>sensor_msgs</depend>
   <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
   <depend>aerial_robot_msgs</depend>
   <depend>spinal</depend>
+  <!-- <depend>gazebo_ros2_control</depend> -->
+  <!-- <depend>controller_interface</depend> -->
+  <depend>controller_manager_msgs</depend>
+  <depend>controller_manager</depend>
+  <depend>hardware_interface</depend>
+  <depend>urdf</depend>
+  <depend>urdfdom_headers</depend>
+  <depend>ignition-math6</depend>
+  <depend>tinyxml2_vendor</depend>
+  <depend>aerial_robot_model</depend>
+  <depend>ignition-gazebo6</depend>
+  <depend>ros_gz_sim</depend>
+  <depend>gz_ros2_control</depend>
 
   <!-- <export> -->
   <!--   <gazebo_ros_control plugin="${prefix}/aerial_robot_hw_sim_plugins.xml"/> -->
@@ -23,7 +38,9 @@
 
   <export>
     <build_type>ament_cmake</build_type>
+    <ignitionGazebo plugin_path="${prefix}/lib"/>
     <gazebo_ros gazebo_model_path="${prefix}/gazebo_model"/>
+    <pluginlib plugin="${prefix}/aerial_robot_hw_sim_plugins.xml"/>
   </export>
 
 </package>

@@ -4,14 +4,17 @@
     xmlns:xacro="http://www.ros.org/wiki/xacro" name="spinal" >
 
   <xacro:macro name="gazebo_spinal" params="robot_name imu_frame:=fc mag_frame:=magnet gps_frame:=gps">
-    <!-- gazebo elements: spinal interface -->
-    <!-- <gazebo> -->
-    <!--   <plugin name="gazebo_ros2_control" filename="libgazebo_ros2_control.so"> -->
-    <!--     <robotNamespace>/${robot_name}</robotNamespace> -->
-    <!--     <robotSimType>gazebo_ros2_control/AerialRobotHWSim</robotSimType> -->
-    <!--   </plugin> -->
-    <!-- </gazebo> -->
+  <ros2_control name="aerial_robot_controller_manager" type="system">
+    <hardware>
+      <plugin>aerial_robot_simulation::AerialRobotHwSim</plugin>
+    </hardware>
+  </ros2_control>
 
+  <gazebo>
+    <plugin name="aerial_robot_simulation::AerialRobotIgn" filename="libaerial_robot_ign_plugin.so">
+    </plugin>
+  </gazebo>
+    
     <!-- imu plugin -->
     <!--
         note1: please do not use hector_gazebo_ros_imu, which calculates the acceleration in the parent link of the imu frame (e.g. fc -> link2)
