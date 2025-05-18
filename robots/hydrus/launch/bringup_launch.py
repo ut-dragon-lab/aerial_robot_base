@@ -9,10 +9,15 @@ from launch.substitutions import (
     Command,
     PathJoinSubstitution,
     TextSubstitution,
+    FindExecutable,
 )
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 from launch_ros.parameter_descriptions import ParameterValue, ParameterFile
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+
+from launch.actions import IncludeLaunchDescription
+from launch.substitutions import PathJoinSubstitution
 
 def generate_launch_description():
 
@@ -114,8 +119,8 @@ def generate_launch_description():
             name='aerial_robot_core',
             namespace=robot_ns,
             condition=IfCondition(need_jsp),
-            parameters=[robot_description, robot_model_plugin_name]# ,
-            # prefix=['gdb -ex run --args']
+            parameters=[robot_description, robot_model_plugin_name],
+            output = 'screen'
         ),
 
         # servo_bridge
@@ -126,16 +131,6 @@ def generate_launch_description():
             namespace=robot_ns,
             condition=IfCondition(need_jsp),
             parameters=[robot_description, servo_param_file],
-        ),
-
-        # joint_state_publisher_gui (optional)
-        Node(
-            package='joint_state_publisher_gui',
-            executable='joint_state_publisher_gui',
-            name='joint_state_publisher_gui',
-            namespace=robot_ns,
-            condition=IfCondition(need_jsp),
-            parameters=[robot_description]
         ),
 
         # robot_state_publisher
@@ -155,8 +150,10 @@ def generate_launch_description():
             executable='rotor_tf_publisher',
             name='rotor_tf_publisher',
             namespace=robot_ns,
-            condition=UnlessCondition(need_jsp),
-            parameters=[{'tf_prefix': robot_ns}]
+            condition=IfCondition(need_jsp),
+            parameters=[
+                {'tf_prefix': robot_ns},
+                robot_description],
         ),
         
         Node(
@@ -167,4 +164,20 @@ def generate_launch_description():
             arguments=['-d', rviz_config],
             condition=UnlessCondition(headless)
         ),
+
+        # IncludeLaunchDescription(
+        #     PythonLaunchDescriptionSource(
+        #         PathJoinSubstitution([
+        #             FindPackageShare('aerial_robot_simulation'),
+        #             'launch',
+        #             'gazebo_launch.py'
+        #         ])
+        #     ),
+        #     launch_arguments={
+        #         # gazebo_launch.py 側で用意した引数名：渡す LaunchConfiguration／Substitution
+        #         # 'world': LaunchConfiguration('world'),
+        #         # 'robot_name': LaunchConfiguration('robot_ns'),
+        #         'robot_description_content': robot_description_content
+        #     }.items()
+        # ),
     ])

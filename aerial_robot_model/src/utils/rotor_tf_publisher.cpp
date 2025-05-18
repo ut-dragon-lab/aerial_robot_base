@@ -50,26 +50,42 @@
 using namespace std::chrono_literals;
 using std::string;
 
-class RotorTfPublisher : public rclcpp::Node {
+class RotorTfPublisher {
  public:
-  RotorTfPublisher(const KDL::Tree& tree, const urdf::Model& model)
-      : Node("rotor_tf_publisher"), tree_(tree), model_(model) {
+  RotorTfPublisher(rclcpp::Node::SharedPtr node) {
+    node_ = node;
     // parameters
-    this->declare_parameter<string>("rotor_joint_name", "rotor");
-    this->declare_parameter<string>("tf_prefix", "");
-    this->get_parameter("rotor_joint_name", rotor_joint_name_);
-    this->get_parameter("tf_prefix", tf_prefix_);
+    // node_->declare_parameter<string>("rotor_joint_name", "rotor");
+    // node_->declare_parameter<string>("tf_prefix", "");
+    node_->get_parameter("rotor_joint_name", rotor_joint_name_);
+    node_->get_parameter("tf_prefix", tf_prefix_);
+
+    std::string urdf_xml;
+    node_->declare_parameter<std::string>("robot_description", "");
+    node_->get_parameter("robot_description", urdf_xml);
+
+    if (!model_.initString(urdf_xml)) {
+      RCLCPP_ERROR(rclcpp::get_logger("rotor_tf_publisher"), "Failed to parse 'robot_description' URDF");
+      return;
+    }
+
+    if (!kdl_parser::treeFromUrdfModel(model_, tree_)) {
+      RCLCPP_ERROR(rclcpp::get_logger("rotor_tf_publisher"), "Failed to extract KDL tree from URDF");
+      return;
+    }
 
     // collect all the rotor‐attached segments
     addChildren(tree_.getRootSegment()->second);
 
     // schedule one‐shot timer to broadcast static TFs after 100ms
-    timer_ = this->create_wall_timer(100ms, [this]() {
+    timer_ = node_->create_wall_timer(100ms, [this]() {
       broadcastStaticTransforms();
       timer_->cancel();
     });
 
-    static_broadcaster_ = std::make_unique<tf2_ros::StaticTransformBroadcaster>(this->shared_from_this());
+    RCLCPP_INFO(node_->get_logger(), "rotor_publisher initialized");
+
+    static_broadcaster_ = std::make_unique<tf2_ros::StaticTransformBroadcaster>(node_->shared_from_this());
   }
 
  private:
@@ -97,13 +113,12 @@ class RotorTfPublisher : public rclcpp::Node {
   void broadcastStaticTransforms() {
     std::vector<geometry_msgs::msg::TransformStamped> tfs;
     tfs.reserve(segments_rotor_.size());
-    auto now = this->get_clock()->now();
+    auto now = node_->get_clock()->now();
     for (auto& kv : segments_rotor_) {
       const auto& sp = kv.second;
       auto msg = tf2::kdlToTransform(sp.segment.pose(0));
       msg.header.stamp = now;
 
-      // prefix が空文字でなければ "prefix/root" 形式に
       if (tf_prefix_.empty()) {
         msg.header.frame_id = sp.root;
         msg.child_frame_id = sp.tip;
@@ -114,10 +129,11 @@ class RotorTfPublisher : public rclcpp::Node {
       tfs.push_back(msg);
     }
     static_broadcaster_->sendTransform(tfs);
-    RCLCPP_INFO(this->get_logger(), "Published %zu static rotor TF(s)", tfs.size());
+    RCLCPP_INFO(node_->get_logger(), "Published %zu static rotor TF(s)", tfs.size());
   }
 
   // members
+  rclcpp::Node::SharedPtr node_;
   KDL::Tree tree_;
   urdf::Model model_;
   string rotor_joint_name_;
@@ -130,31 +146,11 @@ class RotorTfPublisher : public rclcpp::Node {
 int main(int argc, char** argv) {
   rclcpp::init(argc, argv);
 
-  // 1) パラメータ専用の小ノードを立ち上げて URDF を取得
-  auto param_node = std::make_shared<rclcpp::Node>(
-      "rotor_tf_publisher_param",
-      rclcpp::NodeOptions().allow_undeclared_parameters(true).automatically_declare_parameters_from_overrides(true));
-  std::string urdf_xml;
-  param_node->declare_parameter<std::string>("robot_description", "");
-  param_node->get_parameter("robot_description", urdf_xml);
+  rclcpp::NodeOptions options;
+  auto ros_node = std::make_shared<rclcpp::Node>("rotor_tf_publisher", options);
 
-  // 2) URDF モデル初期化
-  urdf::Model model;
-  if (!model.initString(urdf_xml)) {
-    RCLCPP_ERROR(rclcpp::get_logger("rotor_tf_publisher"), "Failed to parse 'robot_description' URDF");
-    return 1;
-  }
-
-  // 3) KDL ツリー生成
-  KDL::Tree tree;
-  if (!kdl_parser::treeFromUrdfModel(model, tree)) {
-    RCLCPP_ERROR(rclcpp::get_logger("rotor_tf_publisher"), "Failed to extract KDL tree from URDF");
-    return 1;
-  }
-
-  // 4) 実ノードを起動
-  auto node = std::make_shared<RotorTfPublisher>(tree, model);
-  rclcpp::spin(node);
+  auto rotor_tf_publisher = std::make_shared<RotorTfPublisher>(ros_node);
+  rclcpp::spin(ros_node);
   rclcpp::shutdown();
   return 0;
 }
