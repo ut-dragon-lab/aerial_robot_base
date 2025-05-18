@@ -1,8 +1,8 @@
-<library path="libaerial_robot_hw_sim.so">
+<library path="aerial_robot_hw_sim">
   <class
-    name="aerial_robot_simulation::AerialRobotHwSim"
-    type="aerial_robot_simulation::AerialRobotHwSim"
-    base_class_type="hardware_interface::SystemInterface">
+    name="gz_ros2_control/AerialRobotHwSim"
+    type="gz_ros2_control::AerialRobotHwSim"
+    base_class_type="gz_ros2_control::GazeboSimSystemInterface">
     <description>
       Spinal-based hardware interface for aerial robot simulation
     </description>

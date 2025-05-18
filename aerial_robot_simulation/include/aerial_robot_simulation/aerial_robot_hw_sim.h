@@ -6,55 +6,62 @@
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/twist_stamped.hpp>
 #include <hardware_interface/handle.hpp>
-#include <hardware_interface/system_interface.hpp>
-#include <ignition/gazebo/EntityComponentManager.hh>
-#include <ignition/gazebo/EventManager.hh>
-#include <ignition/gazebo/System.hh>
-#include <ignition/gazebo/Types.hh>
-#include <ignition/gazebo/components/AngularVelocity.hh>
-#include <ignition/gazebo/components/LinearVelocity.hh>
-#include <ignition/gazebo/components/Link.hh>
-#include <ignition/gazebo/components/Name.hh>
-#include <ignition/gazebo/components/Pose.hh>
+#include <map>
+#include <memory>
 #include <nav_msgs/msg/odometry.hpp>
-#include <rclcpp/node.hpp>
-#include <rclcpp_lifecycle/lifecycle_node.hpp>
+#include <pluginlib/class_list_macros.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/magnetic_field.hpp>
+#include <string>
+#include <vector>
 
-using hardware_interface::CallbackReturn;
+#include "gz_ros2_control/gz_system_interface.hpp"
+#include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
+#include "rclcpp_lifecycle/state.hpp"
 
-namespace aerial_robot_simulation {
+namespace gz_ros2_control {
+using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
+class AerialRobotHwSimPrivate;
 
-class AerialRobotHwSim : public hardware_interface::SystemInterface {
+class AerialRobotHwSim : public gz_ros2_control::GazeboSimSystemInterface {
  public:
-  RCLCPP_SHARED_PTR_DEFINITIONS(AerialRobotHwSim)
+  CallbackReturn on_init(const hardware_interface::HardwareInfo& system_info) override;
 
-  // Initialize hardware from URDF/parameters
-  CallbackReturn on_init(const hardware_interface::HardwareInfo& info) override;
+  CallbackReturn on_configure(const rclcpp_lifecycle::State& previous_state) override;
 
-  // Expose state (position, velocity, effort, etc.)
+  // Documentation Inherited
   std::vector<hardware_interface::StateInterface> export_state_interfaces() override;
 
-  // Expose command interfaces (effort, velocity, position, etc.)
+  // Documentation Inherited
   std::vector<hardware_interface::CommandInterface> export_command_interfaces() override;
 
-  // Lifecycle transitions
+  // Documentation Inherited
   CallbackReturn on_activate(const rclcpp_lifecycle::State& previous_state) override;
+
+  // Documentation Inherited
   CallbackReturn on_deactivate(const rclcpp_lifecycle::State& previous_state) override;
 
-  // Read sensor / simulation data into state interfaces_
+  // Documentation Inherited
+  hardware_interface::return_type perform_command_mode_switch(const std::vector<std::string>& start_interfaces,
+                                                              const std::vector<std::string>& stop_interfaces) override;
+
+  // Documentation Inherited
   hardware_interface::return_type read(const rclcpp::Time& time, const rclcpp::Duration& period) override;
 
-  // Write commands (TODO)
+  // Documentation Inherited
   hardware_interface::return_type write(const rclcpp::Time& time, const rclcpp::Duration& period) override;
 
-  void configSpinalIface(rclcpp::Node::SharedPtr node);
+  // Documentation Inherited
+  bool initSim(rclcpp::Node::SharedPtr& model_nh, std::map<std::string, sim::Entity>& joints,
+               const hardware_interface::HardwareInfo& hardware_info, sim::EntityComponentManager& ecm,
+               int& update_rate) override;
 
   void setImuData(const ignition::math::Vector3d& linear_acceleration,
                   const ignition::math::Vector3d& angular_velocity);
 
   void setMagData(const ignition::math::Vector3d& magnetic_field);
+
+  void configSpinalIface(rclcpp::Node::SharedPtr node);
 
  private:
   // Number of rotors
@@ -81,11 +88,17 @@ class AerialRobotHwSim : public hardware_interface::SystemInterface {
   std::array<double, 3> mag_field_{};
 
   hardware_interface::HardwareInfo hw_info_;
+
+  void registerSensors(const hardware_interface::HardwareInfo& hardware_info);
+
+  /// \brief Private data class
+  std::unique_ptr<AerialRobotHwSimPrivate> dataPtr;
 };
 
-}  // namespace aerial_robot_simulation
+}  // namespace gz_ros2_control
 
-#include <pluginlib/class_list_macros.hpp>
-PLUGINLIB_EXPORT_CLASS(aerial_robot_simulation::AerialRobotHwSim, hardware_interface::SystemInterface)
+namespace ign_ros2_control {
+using IgnitionSystem = gz_ros2_control::AerialRobotHwSim;
+}  // namespace ign_ros2_control
 
 #endif  // AERIAL_ROBOT_SYSTEM_HPP_

@@ -1,12 +1,13 @@
 import os
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, TimerAction, SetEnvironmentVariable, LogInfo, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, TimerAction, SetEnvironmentVariable, LogInfo, IncludeLaunchDescription, RegisterEventHandler
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, EnvironmentVariable, TextSubstitution, Command
 from launch_ros.substitutions import FindPackageShare, FindPackagePrefix
 from launch_ros.actions import Node
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from ament_index_python.packages import get_package_share_directory, get_package_prefix
 from launch_ros.parameter_descriptions import ParameterValue
+from launch.event_handlers import OnProcessExit
 
 def generate_launch_description():
     pkg_share   = get_package_share_directory('aerial_robot_simulation')
@@ -25,6 +26,15 @@ def generate_launch_description():
     world        = LaunchConfiguration('world_sdf_file')
     robot_name   = LaunchConfiguration('robot_name')
     robot_description_content = LaunchConfiguration('robot_description_content')
+
+    robot_controllers = PathJoinSubstitution(
+        [
+            FindPackageShare('aerial_robot_simulation'),
+            'config',
+            'Gazebo.yaml',
+        ]
+    )
+
 
     robot_prefix = FindPackagePrefix(robot_name)
 
@@ -60,6 +70,21 @@ def generate_launch_description():
             os.pathsep,
             EnvironmentVariable('GZ_SIM_SYSTEM_PLUGIN_PATH', default_value='')
         ]
+    )
+
+    # set_ign_default_path = SetEnvironmentVariable(
+    #     name='GZ_SIM_RESOURCE_PATH',
+    #     value=[
+    #         EnvironmentVariable('GZ_SIM_RESOURCE_PATH', default_value=''),
+    #         TextSubstitution(text=':'),
+    #         TextSubstitution(text='$GZ_SIM_SYSTEM_PLUGIN_PATH'),
+    #     ]
+    # )
+
+    set_ign_default_path = SetEnvironmentVariable(
+        name='GZ_SIM_SYSTEM_PLUGIN_PATH',
+        value=os.path.join('/opt/ros/humble/lib') + ':' +
+              os.environ.get('GZ_SIM_SYSTEM_PLUGIN_PATH', '')
     )    
 
 
@@ -105,11 +130,43 @@ def generate_launch_description():
             output='screen'
         )
 
+    joint_state_broadcaster_spawner = Node(
+        namespace='hydrus',
+        package='controller_manager',
+        executable='spawner',
+        arguments=['joint_state_broadcaster'],
+    )
+
+    # joint_trajectory_controller_spawner = Node(
+    #     namespace='hydrus',
+    #     package='controller_manager',
+    #     executable='spawner',
+    #     arguments=[
+    #         'joint_state_controller',
+    #         '--param-file',
+    #         robot_controllers,
+    #     ],
+    # )
+
+    joint_position_spawner = Node(
+        namespace='hydrus',
+        package='controller_manager',
+        executable='spawner',
+        name='spawn_joint_group_position_controller',
+        output='screen',
+        arguments=[
+            'joint_group_position_controller',
+            '--param-file', robot_controllers
+        ]
+    )    
+    
+
     return LaunchDescription([
         world_arg,
         robot_name_arg,
         set_env,
         set_ign_resource_path,
+        set_ign_default_path,
         set_ign_plugin_path,
         # gz_sim,
         ign_server,
@@ -117,6 +174,9 @@ def generate_launch_description():
         # gz_sim_launch,
         spawn_robot,
         ign_client,
+        joint_state_broadcaster_spawner,
+        # joint_trajectory_controller_spawner
+        joint_position_spawner,
         # gz_sim,
         # ros2_control_node
     ])

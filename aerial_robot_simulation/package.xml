@@ -24,11 +24,14 @@
   <depend>urdf</depend>
   <depend>urdfdom_headers</depend>
   <depend>ignition-math6</depend>
+  <depend>ignition-gazebo6</depend>
+  <depend>ignition-plugin1</depend>
   <depend>tinyxml2_vendor</depend>
   <depend>aerial_robot_model</depend>
-  <depend>ignition-gazebo6</depend>
   <depend>ros_gz_sim</depend>
   <depend>gz_ros2_control</depend>
+  <depend>ros2_control</depend>
+  <depend>ros2_controllers</depend>
 
   <!-- <export> -->
   <!--   <gazebo_ros_control plugin="${prefix}/aerial_robot_hw_sim_plugins.xml"/> -->

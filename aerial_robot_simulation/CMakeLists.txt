@@ -22,10 +22,14 @@ find_package(pluginlib REQUIRED)
 find_package(urdf REQUIRED)
 find_package(urdfdom_headers REQUIRED)
 find_package(ignition-math6 REQUIRED)
+find_package(ignition-cmake2 REQUIRED)
 find_package(ignition-gazebo6 REQUIRED)
+find_package(ignition-plugin1 REQUIRED)
 find_package(tinyxml2_vendor REQUIRED)
 find_package(TinyXML2 REQUIRED)
 find_package(ros_gz_sim REQUIRED)
+find_package(gz_ros2_control REQUIRED)
+find_package(ros2_control REQUIRED)
 find_package(controller_manager_msgs REQUIRED)
 find_package(controller_manager REQUIRED)
 
@@ -87,6 +91,7 @@ ament_target_dependencies(aerial_robot_hw_sim
   # tinyxml2_vendor
   # TinyXML2
   # ignition-math6
+  gz_ros2_control
   ignition-gazebo6
   # aerial_robot_model
   )
@@ -94,8 +99,8 @@ target_link_libraries(aerial_robot_hw_sim
   spinal_interface
   )
 pluginlib_export_plugin_description_file(
-  hardware_interface
-  aerial_robot_hw_sim_plugins.xml
+    gz_ros2_control
+    aerial_robot_hw_sim_plugins.xml
 )
 
 add_library(aerial_robot_ign_plugin SHARED
@@ -110,7 +115,10 @@ ament_target_dependencies(aerial_robot_ign_plugin
   geometry_msgs
   controller_manager_msgs
   controller_manager
-  ignition-plugin1  
+  ignition-plugin1
+  ignition-cmake2
+  gz_ros2_control
+  ros2_control
   # kdl_parser
   # orocos_kdl
   # urdf
