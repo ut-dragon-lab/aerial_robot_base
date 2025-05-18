@@ -60,6 +60,7 @@ void RobotModel::initialize(rclcpp::Node::SharedPtr node, bool init_with_rospara
   fc_f_min_thre_ = fc_f_min_thre;
   fc_t_min_thre_ = fc_t_min_thre;
   epsilon_ = epsilon;
+  fixed_model_ = fixed_model;
   if (init_with_rosparam) {
     getParamFromRos();
   }
@@ -68,7 +69,6 @@ void RobotModel::initialize(rclcpp::Node::SharedPtr node, bool init_with_rospara
   gravity_ << 0, 0, 9.80665, 0, 0, 0;
   gravity_3d_.resize(3);
   gravity_3d_ << 0, 0, 9.80665;
-
   kinematicsInit();
   stabilityInit();
   staticsInit();
@@ -166,97 +166,123 @@ void RobotModel::staticsInit() {
 }
 
 KDL::RigidBodyInertia RobotModel::inertialSetup(const KDL::TreeElement& tree_element) {
-  const auto& seg = GetTreeElementSegment(tree_element);
-  auto current_inertia = seg.getInertia();
+  const auto& current_seg = GetTreeElementSegment(tree_element);
+  auto current_seg_inertia = current_seg.getInertia();
   if (verbose_) {
-    RCLCPP_WARN(LOGGER, "segment %s mass: %f", seg.getName().c_str(), current_inertia.getMass());
+    RCLCPP_WARN(LOGGER, "segment %s mass: %f", current_seg.getName().c_str(), current_seg_inertia.getMass());
   }
 
-  // root-link special handling
-  if (seg.getName().find("root") != std::string::npos) {
-    auto child = GetTreeElementChildren(tree_element).at(0)->second;
-    auto& child_seg = GetTreeElementSegment(child);
-    inertia_map_.emplace(child_seg.getName(), child_seg.getInertia());
+  /* check whether this can be a base inertia segment (i.e. link) */
+  /* 1. for the "root" parent link (i.e. link1) */
+  if (current_seg.getName().find("root") != std::string::npos) {
+    assert(inertia_map_.size() == 0);
+    assert(GetTreeElementChildren(tree_element).size() == 1);
+
+    const KDL::Segment& child_seg = GetTreeElementSegment(GetTreeElementChildren(tree_element).at(0)->second);
+    inertia_map_.insert(std::make_pair(child_seg.getName(), child_seg.getInertia()));
+  }
+  /* 2. for segment that has joint with parent segment */
+  if (current_seg.getJoint().getType() != KDL::Joint::None) {
+    /* add the new inertia base (child) link if the joint is not a rotor */
+    if (current_seg.getJoint().getName().find("rotor") == std::string::npos) {
+      /* create a new inertia base link */
+      inertia_map_.insert(std::make_pair(current_seg.getName(), current_seg_inertia));
+      joint_index_map_.insert(std::make_pair(current_seg.getJoint().getName(), tree_element.q_nr));
+      joint_names_.push_back(current_seg.getJoint().getName());
+      joint_indices_.push_back(tree_element.q_nr);
+      joint_parent_link_names_.push_back(GetTreeElementParent(tree_element)->first);
+      if (verbose_) {
+        RCLCPP_WARN(LOGGER, "Add new inertia base link: %s", current_seg.getName().c_str());
+      }
+    }
+  }
+  /* special process for rotor */
+  if (current_seg.getJoint().getName().find("rotor") != std::string::npos) {
+    /* add the rotor direction */
+    auto urdf_joint = model_.getJoint(current_seg.getJoint().getName());
+    if (urdf_joint->type == urdf::Joint::CONTINUOUS) {
+      if (verbose_) {
+        RCLCPP_WARN(LOGGER, "joint name: %s, z axis: %f", current_seg.getJoint().getName().c_str(), urdf_joint->axis.z);
+      }
+      rotor_direction_.insert(
+          std::make_pair(std::atoi(current_seg.getJoint().getName().substr(5).c_str()), urdf_joint->axis.z));
+    }
+  }
+  /* recursion process for children segment */
+  for (const auto& elem : GetTreeElementChildren(tree_element)) {
+    const KDL::Segment& child_seg = GetTreeElementSegment(elem->second);
+    KDL::RigidBodyInertia child_seg_inertia = child_seg.getFrameToTip() * inertialSetup(elem->second);
+    KDL::RigidBodyInertia current_seg_inertia_old = current_seg_inertia;
+    current_seg_inertia = current_seg_inertia_old + child_seg_inertia;
+
     if (verbose_) {
-      RCLCPP_WARN(LOGGER, "Add root link: %s", child_seg.getName().c_str());
+      RCLCPP_WARN(LOGGER, "Add new child segment %s to direct segment: %s", child_seg.getName().c_str(),
+                  current_seg.getName().c_str());
     }
-  }
-
-  // joint-bearing segments
-  if (seg.getJoint().getType() != KDL::Joint::None && seg.getJoint().getName().find("rotor") == std::string::npos) {
-    inertia_map_.emplace(seg.getName(), current_inertia);
-    joint_index_map_.emplace(seg.getJoint().getName(), tree_element.q_nr);
-    joint_names_.push_back(seg.getJoint().getName());
-    joint_indices_.push_back(tree_element.q_nr);
-    joint_parent_link_names_.push_back(GetTreeElementParent(tree_element)->first);
-    if (verbose_) {
-      RCLCPP_WARN(LOGGER, "Add inertia-link: %s", seg.getName().c_str());
-    }
-  }
-
-  // rotor detection
-  if (seg.getJoint().getName().find("rotor") != std::string::npos) {
-    auto uj = model_.getJoint(seg.getJoint().getName());
-    if (uj->type == urdf::Joint::CONTINUOUS) {
-      rotor_direction_.emplace(std::atoi(seg.getJoint().getName().substr(5).c_str()), uj->axis.z);
-    }
-  }
-
-  // recurse children
-  KDL::RigidBodyInertia combined = current_inertia;
-  for (auto& child_elem : GetTreeElementChildren(tree_element)) {
-    auto child_inertia = inertialSetup(child_elem->second);
-    combined = combined + (seg.getFrameToTip() * child_inertia);
   }
 
   // count rotors under thrust_link_
-  if (seg.getName().find(thrust_link_) != std::string::npos) {
+  if (current_seg.getName().find(thrust_link_) != std::string::npos) {
     ++rotor_num_;
   }
 
-  // update base inertia
-  auto it = inertia_map_.find(seg.getName());
-  if (it != inertia_map_.end()) {
-    it->second = combined;
+  /* update the inertia if the segment is base */
+  if (inertia_map_.find(current_seg.getName()) != inertia_map_.end()) {
+    inertia_map_.at(current_seg.getName()) = current_seg_inertia;
+
     if (verbose_) {
-      RCLCPP_WARN(LOGGER, "Base %s total mass: %f", seg.getName().c_str(), it->second.getMass());
+      RCLCPP_WARN(LOGGER, "Total mass of base segment %s is %f", current_seg.getName().c_str(),
+                  inertia_map_.at(current_seg.getName()).getMass());
     }
-    combined = KDL::RigidBodyInertia::Zero();
+    current_seg_inertia = KDL::RigidBodyInertia::Zero();
   }
 
-  return combined;
+  return current_seg_inertia;
 }
 
 void RobotModel::makeJointSegmentMap() {
   joint_segment_map_.clear();
-  for (auto& p : joint_index_map_) {
-    joint_segment_map_[p.first] = {};
+  for (const auto joint_index : joint_index_map_) {
+    std::vector<std::string> empty_vec;
+    joint_segment_map_[joint_index.first] = empty_vec;
   }
-  jointSegmentSetupRecursive(tree_.getRootSegment()->second, {});
+
+  std::vector<std::string> current_joints;
+  jointSegmentSetupRecursive(getTree().getRootSegment()->second, current_joints);
 }
 
-void RobotModel::jointSegmentSetupRecursive(const KDL::TreeElement& elem, std::vector<std::string> current_joints) {
-  const auto& seg = GetTreeElementSegment(elem);
-  bool added = false;
+void RobotModel::jointSegmentSetupRecursive(const KDL::TreeElement& tree_element,
+                                            std::vector<std::string> current_joints) {
+  const auto inertia_map = getInertiaMap();
+  const KDL::Segment current_seg = GetTreeElementSegment(tree_element);
+  bool add_joint_flag = false;
 
-  if (seg.getJoint().getType() != KDL::Joint::None && seg.getJoint().getName().find("rotor") == std::string::npos) {
-    current_joints.push_back(seg.getJoint().getName());
-    joint_hierarchy_.emplace(seg.getJoint().getName(), current_joints.size() - 1);
-
-    ++joint_num_;
-    added = true;
+  // if this segment has a real joint except rotor
+  if (current_seg.getJoint().getType() != KDL::Joint::None &&
+      current_seg.getJoint().getName().find("rotor") == std::string::npos) {
+    std::string focused_joint = current_seg.getJoint().getName();
+    joint_hierarchy_.insert(std::make_pair(focused_joint, current_joints.size()));
+    current_joints.push_back(focused_joint);
+    bool add_joint_flag = true;
+    joint_num_++;
   }
 
-  if (inertia_map_.count(seg.getName()) || seg.getName().find(thrust_link_) != std::string::npos) {
-    for (auto& j : current_joints) {
-      joint_segment_map_[j].push_back(seg.getName());
+  // if this segment is a real segment (= not having fixed joint)
+  if (inertia_map.find(current_seg.getName()) != inertia_map.end() ||
+      current_seg.getName().find("thrust") != std::string::npos) {
+    for (const auto& cj : current_joints) {
+      joint_segment_map_.at(cj).push_back(current_seg.getName());
     }
   }
 
-  for (auto& child : GetTreeElementChildren(elem)) {
-    jointSegmentSetupRecursive(child->second, current_joints);
+  // recursive process
+  for (const auto& elem : GetTreeElementChildren(tree_element)) {
+    jointSegmentSetupRecursive(elem->second, current_joints);
   }
+
+  return;
 }
+
 bool RobotModel::addExtraModule(const std::string& module_name, const std::string& parent_link_name,
                                 const KDL::Frame& transform, const KDL::RigidBodyInertia& inertia) {
   if (extra_module_map_.find(module_name) == extra_module_map_.end()) {
@@ -326,6 +352,8 @@ void RobotModel::updateRobotModel(const KDL::JntArray& joint_positions) { update
 void RobotModel::updateRobotModel(const sensor_msgs::msg::JointState& state) { updateRobotModel(jointMsgToKdl(state)); }
 
 void RobotModel::updateRobotModelImpl(const KDL::JntArray& joint_positions) {
+  RCLCPP_INFO_STREAM(LOGGER, "called joint");
+
   joint_positions_ = joint_positions;
 
   KDL::RigidBodyInertia link_inertia = KDL::RigidBodyInertia::Zero();
