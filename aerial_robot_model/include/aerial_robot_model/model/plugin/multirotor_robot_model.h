@@ -41,7 +41,6 @@ class MultirotorRobotModel : public aerial_robot_model::RobotModel {
  public:
   MultirotorRobotModel();
   virtual ~MultirotorRobotModel() = default;
-  virtual void initialize(rclcpp::Node::SharedPtr node, bool init_with_rosparam = true, bool verbose = false,
-                          bool fixed_model = true, double fc_f_min_thre = 0, double fc_t_min_thre = 0,
-                          double epsilon = 10.0) override;
+  virtual void initialize(rclcpp::Node::SharedPtr node, bool init_with_rosparam, bool verbose, bool fixed_model,
+                          double fc_f_min_thre, double fc_t_min_thre, double epsilon) override;
 };
