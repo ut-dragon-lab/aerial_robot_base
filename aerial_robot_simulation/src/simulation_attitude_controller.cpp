@@ -11,6 +11,7 @@
 namespace flight_controllers {
 controller_interface::CallbackReturn SimulationAttitudeController::on_init() {
   auto_declare<std::string>("imu", "spinal_imu");
+  auto_declare<std::string>("mag", "spinal_mag");
   spinal_iface_.init(get_node());
   return controller_interface::CallbackReturn::SUCCESS;
 }
@@ -25,6 +26,7 @@ controller_interface::InterfaceConfiguration SimulationAttitudeController::state
   controller_interface::InterfaceConfiguration config;
   config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
 
+  // IMU sensor value
   static const std::array<std::string, 10> imu_ifaces = {
       "orientation.x",         "orientation.y",        "orientation.z",      "orientation.w",
       "angular_velocity.x",    "angular_velocity.y",   "angular_velocity.z", "linear_acceleration.x",
@@ -33,6 +35,14 @@ controller_interface::InterfaceConfiguration SimulationAttitudeController::state
   const std::string imu = get_node()->get_parameter("imu").as_string();
   for (const auto &iface : imu_ifaces) {
     config.names.push_back(imu + "/" + iface);
+  }
+
+  // Mag sensor value
+  static const std::array<std::string, 3> mag_ifaces = {"field_tesla.x", "field_tesla.y", "field_tesla.z"};
+
+  const std::string mag = get_node()->get_parameter("mag").as_string();
+  for (const auto &iface : mag_ifaces) {
+    config.names.push_back(mag + "/" + iface);
   }
 
   return config;
@@ -59,6 +69,7 @@ controller_interface::return_type SimulationAttitudeController::update(const rcl
                                                                        const rclcpp::Duration & /*period*/
 ) {
   spinal_iface_.onGround(false);
+
   // angular velocity
   double ang_x = state_interfaces_[4].get_value();
   double ang_y = state_interfaces_[5].get_value();
@@ -69,7 +80,13 @@ controller_interface::return_type SimulationAttitudeController::update(const rcl
   double acc_y = state_interfaces_[8].get_value();
   double acc_z = state_interfaces_[9].get_value();
 
+  // mag value
+  double mag_x = state_interfaces_[10].get_value();
+  double mag_y = state_interfaces_[11].get_value();
+  double mag_z = state_interfaces_[12].get_value();
+
   spinal_iface_.setImuValue(acc_x, acc_y, acc_z, ang_x, ang_y, ang_z);
+  spinal_iface_.setMagValue(mag_x, mag_y, mag_z);
   spinal_iface_.stateEstimate();
   return controller_interface::return_type::OK;
 }

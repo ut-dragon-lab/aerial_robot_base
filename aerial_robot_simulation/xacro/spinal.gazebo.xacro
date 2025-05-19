@@ -53,6 +53,11 @@
       <state_interface name="linear_acceleration.y"/>
       <state_interface name="linear_acceleration.z"/>
     </sensor>
+    <sensor name="spinal_mag">
+      <state_interface name="field_tesla.x"/>
+      <state_interface name="field_tesla.y"/>
+      <state_interface name="field_tesla.z"/>
+    </sensor>    
   </ros2_control>
 
   <gazebo>

@@ -12,6 +12,7 @@
 #include <ignition/gazebo/components/JointVelocityCmd.hh>
 #include <ignition/gazebo/components/JointVelocityReset.hh>
 #include <ignition/gazebo/components/LinearAcceleration.hh>
+#include <ignition/gazebo/components/Magnetometer.hh>
 #include <ignition/gazebo/components/Name.hh>
 #include <ignition/gazebo/components/ParentEntity.hh>
 #include <ignition/gazebo/components/Pose.hh>
@@ -84,6 +85,15 @@ class ImuData {
   void OnIMU(const GZ_MSGS_NAMESPACE IMU& _msg);
 };
 
+class MagData {
+ public:
+  std::string name{};
+  std::string topicName{};
+  sim::Entity sim_mag_sensor_ = sim::kNullEntity;
+  std::array<double, 3> mag_sensor_data_;
+  void OnMag(const GZ_MSGS_NAMESPACE Magnetometer& _msg);
+};
+
 void ImuData::OnIMU(const GZ_MSGS_NAMESPACE IMU& _msg) {
   this->imu_sensor_data_[0] = _msg.orientation().x();
   this->imu_sensor_data_[1] = _msg.orientation().y();
@@ -95,6 +105,12 @@ void ImuData::OnIMU(const GZ_MSGS_NAMESPACE IMU& _msg) {
   this->imu_sensor_data_[7] = _msg.linear_acceleration().x();
   this->imu_sensor_data_[8] = _msg.linear_acceleration().y();
   this->imu_sensor_data_[9] = _msg.linear_acceleration().z();
+}
+
+void MagData::OnMag(const GZ_MSGS_NAMESPACE Magnetometer& _msg) {
+  this->mag_sensor_data_[0] = _msg.field_tesla().x();
+  this->mag_sensor_data_[1] = _msg.field_tesla().y();
+  this->mag_sensor_data_[2] = _msg.field_tesla().z();
 }
 
 class gz_ros2_control::AerialRobotHwSimPrivate {
@@ -113,6 +129,9 @@ class gz_ros2_control::AerialRobotHwSimPrivate {
 
   /// \brief vector with the imus .
   std::vector<std::shared_ptr<ImuData>> imus_;
+
+  /// \brief vector with the mags .
+  std::vector<std::shared_ptr<MagData>> mags_;
 
   /// \brief state interfaces that will be exported to the Resource Manager
   std::vector<hardware_interface::StateInterface> state_interfaces_;
@@ -135,6 +154,9 @@ class gz_ros2_control::AerialRobotHwSimPrivate {
 
   /// \brief Gain which converts position error to a velocity command
   double position_proportional_gain_;
+
+  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub_;
+  rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr twist_pub_;
 };
 
 namespace gz_ros2_control {
@@ -150,6 +172,10 @@ bool AerialRobotHwSim::initSim(rclcpp::Node::SharedPtr& model_nh, std::map<std::
   this->dataPtr->n_dof_ = hardware_info.joints.size();
 
   this->dataPtr->update_rate = &update_rate;
+
+  // Publisher for world pose/twist
+  this->dataPtr->pose_pub_ = this->nh_->create_publisher<geometry_msgs::msg::PoseStamped>("/robot/world_pose", 10);
+  this->dataPtr->twist_pub_ = this->nh_->create_publisher<geometry_msgs::msg::TwistStamped>("/robot/world_twist", 10);
 
   RCLCPP_DEBUG(this->nh_->get_logger(), "n_dof_ %lu", this->dataPtr->n_dof_);
 
@@ -366,6 +392,7 @@ void AerialRobotHwSim::registerSensors(const hardware_interface::HardwareInfo& h
   // So we have resize only once the structures where the data will be stored, and we can safely
   // use pointers to the structures
 
+  // Register IMU
   this->dataPtr->ecm->Each<sim::components::Imu, sim::components::Name>(
       [&](const sim::Entity& _entity, const sim::components::Imu*, const sim::components::Name* _name) -> bool {
         auto imuData = std::make_shared<ImuData>();
@@ -404,6 +431,20 @@ void AerialRobotHwSim::registerSensors(const hardware_interface::HardwareInfo& h
         this->dataPtr->imus_.push_back(imuData);
         return true;
       });
+
+  // Register Magnetometer
+  this->dataPtr->ecm->Each<sim::components::Magnetometer, sim::components::Name>(
+      [&](const sim::Entity& ent, const sim::components::Magnetometer*, const sim::components::Name* name) {
+        auto magData = std::make_shared<MagData>();
+        magData->name = name->Data();
+        magData->sim_mag_sensor_ = ent;
+        // register magnetic field state interfaces
+        this->dataPtr->state_interfaces_.emplace_back(magData->name, "field_tesla.x", &magData->mag_sensor_data_[0]);
+        this->dataPtr->state_interfaces_.emplace_back(magData->name, "field_tesla.y", &magData->mag_sensor_data_[1]);
+        this->dataPtr->state_interfaces_.emplace_back(magData->name, "field_tesla.z", &magData->mag_sensor_data_[2]);
+        this->dataPtr->mags_.push_back(magData);
+        return true;
+      });
 }
 
 CallbackReturn AerialRobotHwSim::on_init(const hardware_interface::HardwareInfo& system_info) {
@@ -424,20 +465,6 @@ CallbackReturn AerialRobotHwSim::on_init(const hardware_interface::HardwareInfo&
                 "  </plugin>\n"
                 "</gazebo>");
   }
-
-  hw_info_ = system_info;
-  // IMU
-  imu_acc_ = {0.0, 0.0, 0.0};
-  imu_gyro_ = {0.0, 0.0, 0.0};
-  // Magnetometer
-  mag_field_ = {0.0, 0.0, 0.0};
-
-  // Parse rotor count
-  rotor_n_dof_ = system_info.joints.size();
-  rotor_efforts_.assign(rotor_n_dof_, 0.0);
-  rotor_efforts_cmd_.assign(rotor_n_dof_, 0.0);
-  rotor_velocity_states_.assign(rotor_n_dof_, 0.0);
-
   return CallbackReturn::SUCCESS;
 }
 
@@ -505,6 +532,22 @@ hardware_interface::return_type AerialRobotHwSim::read(const rclcpp::Time& /*tim
       }
     }
   }
+
+  for (unsigned int i = 0; i < this->dataPtr->mags_.size(); ++i) {
+    if (this->dataPtr->mags_[i]->topicName.empty()) {
+      auto sensorTopicComp =
+          this->dataPtr->ecm->Component<sim::components::SensorTopic>(this->dataPtr->mags_[i]->sim_mag_sensor_);
+      if (sensorTopicComp) {
+        this->dataPtr->mags_[i]->topicName = sensorTopicComp->Data();
+        RCLCPP_INFO_STREAM(this->nh_->get_logger(),
+                           "MAG " << this->dataPtr->mags_[i]->name << " has a topic name: " << sensorTopicComp->Data());
+
+        this->dataPtr->node.Subscribe(this->dataPtr->mags_[i]->topicName, &MagData::OnMag,
+                                      this->dataPtr->mags_[i].get());
+      }
+    }
+  }
+
   return hardware_interface::return_type::OK;
 }
 

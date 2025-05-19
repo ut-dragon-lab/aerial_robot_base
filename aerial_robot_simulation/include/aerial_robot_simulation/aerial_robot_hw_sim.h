@@ -69,10 +69,7 @@ class AerialRobotHwSim : public gz_ros2_control::GazeboSimSystemInterface {
   uint8_t control_mode_;
   geometry_msgs::msg::TwistStamped cmd_vel_;
   geometry_msgs::msg::PoseStamped cmd_pos_;
-
-  std::array<double, 3> imu_acc_{};
-  std::array<double, 3> imu_gyro_{};
-  std::array<double, 3> mag_field_{};
+  ;
 
   hardware_interface::HardwareInfo hw_info_;
 

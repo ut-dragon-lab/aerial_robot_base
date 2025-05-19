@@ -32,3 +32,4 @@
   ros__parameters:
     ros__parameters:
       imu: "spinal_imu"
+      imu: "spinal_mag"
