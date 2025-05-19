@@ -352,8 +352,6 @@ void RobotModel::updateRobotModel(const KDL::JntArray& joint_positions) { update
 void RobotModel::updateRobotModel(const sensor_msgs::msg::JointState& state) { updateRobotModel(jointMsgToKdl(state)); }
 
 void RobotModel::updateRobotModelImpl(const KDL::JntArray& joint_positions) {
-  RCLCPP_INFO_STREAM(LOGGER, "called joint");
-
   joint_positions_ = joint_positions;
 
   KDL::RigidBodyInertia link_inertia = KDL::RigidBodyInertia::Zero();
