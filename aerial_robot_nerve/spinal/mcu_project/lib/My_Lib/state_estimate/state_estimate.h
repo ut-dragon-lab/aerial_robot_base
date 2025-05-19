@@ -37,7 +37,7 @@ class StateEstimate {
   ~StateEstimate() {}
 
 #ifdef SIMULATION
-  void init(rclcpp::Node::SharedPtr node) {
+  void init(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node) {
     attitude_estimate_flag_ = true;
     attitude_estimator_.init(node);
   }

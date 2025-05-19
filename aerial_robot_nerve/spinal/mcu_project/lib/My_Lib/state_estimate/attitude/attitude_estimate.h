@@ -18,6 +18,7 @@
 // #include <ros.h>
 #else
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp_lifecycle/lifecycle_node.hpp>
 #endif
 
 #include <geometry_msgs/msg/vector3_stamped.hpp>
@@ -52,7 +53,7 @@ class AttitudeEstimate {
 #ifdef SIMULATION
   AttitudeEstimate() : acc_(0, 0, 9.8), mag_(1, 0, 0) {}
 
-  void init(rclcpp::Node::SharedPtr node) {
+  void init(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node) {
     node_ = node;
     imu_pub_ = node_->create_publisher<spinal::msg::Imu>("imu", 1);
 
@@ -72,7 +73,6 @@ class AttitudeEstimate {
   void update() {
     /* attitude estimation */
     estimator_->update(gyro_, acc_, mag_);
-
     /* send message to ros*/
     publish();
   }
@@ -92,6 +92,8 @@ class AttitudeEstimate {
     acc_.y = y;
     acc_.z = z;
   }
+
+  std::shared_ptr<rclcpp_lifecycle::LifecyclePublisher<spinal::msg::Imu>> getImuPub() { return imu_pub_; }
 
 #else
 //   AttitudeEstimate():
@@ -204,8 +206,13 @@ class AttitudeEstimate {
   static const uint8_t IMU_PUB_INTERVAL = 5;  // 10-> 100Hz, 2 -> 500Hz
 
  private:
+#ifdef SIMULATION
+  std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node_;  // ROS2 node handle
+  std::shared_ptr<rclcpp_lifecycle::LifecyclePublisher<spinal::msg::Imu>> imu_pub_;
+#else
   rclcpp::Node::SharedPtr node_;  // ROS2 node handle
   rclcpp::Publisher<spinal::msg::Imu>::SharedPtr imu_pub_;
+#endif
   spinal::msg::Imu imu_msg_;
 
   EstimatorAlgorithm* estimator_;

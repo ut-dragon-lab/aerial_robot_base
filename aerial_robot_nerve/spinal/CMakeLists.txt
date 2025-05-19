@@ -10,6 +10,7 @@ find_package(rosidl_default_generators REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_lifecycle REQUIRED)
 
 set(SPINAL_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/mcu_project/lib/My_Lib)
 
@@ -80,7 +81,8 @@ target_include_directories(spinal_state_estimation
 target_link_libraries(spinal_state_estimation
   INTERFACE
   rclcpp::rclcpp
-  spinal_math
+  rclcpp_lifecycle::rclcpp_lifecycle
+  # spinal_math
   )
 
 
