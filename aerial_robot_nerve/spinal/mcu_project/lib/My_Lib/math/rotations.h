@@ -24,6 +24,8 @@
 
 // NOTE!! these rotation values are stored to EEPROM, so be careful not to
 // change the numbering of any existing entry when adding a new entry.
+#pragma once
+
 enum Rotation {
   ROTATION_NONE = 0,
   ROTATION_YAW_45 = 1,
