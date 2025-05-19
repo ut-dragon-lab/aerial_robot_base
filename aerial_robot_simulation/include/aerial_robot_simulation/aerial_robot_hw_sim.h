@@ -56,13 +56,6 @@ class AerialRobotHwSim : public gz_ros2_control::GazeboSimSystemInterface {
                const hardware_interface::HardwareInfo& hardware_info, sim::EntityComponentManager& ecm,
                int& update_rate) override;
 
-  void setImuData(const ignition::math::Vector3d& linear_acceleration,
-                  const ignition::math::Vector3d& angular_velocity);
-
-  void setMagData(const ignition::math::Vector3d& magnetic_field);
-
-  void configSpinalIface(rclcpp::Node::SharedPtr node);
-
  private:
   // Number of rotors
   size_t rotor_n_dof_;
@@ -71,12 +64,6 @@ class AerialRobotHwSim : public gz_ros2_control::GazeboSimSystemInterface {
   std::vector<double> rotor_efforts_;          // current effort state
   std::vector<double> rotor_efforts_cmd_;      // commanded effort
   std::vector<double> rotor_velocity_states_;  // current rotor speed
-
-  // Spinal interface (no inheritance necessary)
-  hardware_interface::SpinalInterface spinal_iface_;
-
-  // ROS2 node
-  rclcpp::Node::SharedPtr node_;
 
   // Control mode: FORCE, VEL, POS
   uint8_t control_mode_;
