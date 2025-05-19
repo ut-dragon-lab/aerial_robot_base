@@ -1,0 +1,9 @@
+<library path="simulation_attitude_controller">
+
+  <class name="flight_controllers/SimulationAttitudeController" type="flight_controllers::SimulationAttitudeController" base_class_type="controller_interface::ControllerInterface">
+    <description>
+      The Attitude Controller using part of the flight controller function in micro-baord.
+    </description>
+  </class>
+
+</library>

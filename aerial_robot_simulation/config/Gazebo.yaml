@@ -11,6 +11,9 @@
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
 
+    attitude_controller:
+      type: flight_controllers/SimulationAttitudeController
+
 # /**/joint_state_controller:
 /**/joint_group_position_controller:
   ros__parameters:
@@ -24,8 +27,8 @@
         i: 0.0
         d: 10.0
     state_publish_rate: 25
-    # command_interfaces:
-    #   - effort
-    # state_interfaces:
-    #   - position
-    #   - velocity
+
+/**/attitude_controller:
+  ros__parameters:
+    ros__parameters:
+      imu: "spinal_imu"

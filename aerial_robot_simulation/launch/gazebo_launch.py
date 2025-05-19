@@ -158,7 +158,20 @@ def generate_launch_description():
             'joint_group_position_controller',
             '--param-file', robot_controllers
         ]
+    )
+
+    att_controller_spawner = Node(
+        namespace='hydrus',
+        package='controller_manager',
+        executable='spawner',
+        name='spawn_att_controller',
+        output='screen',
+        arguments=[
+            'attitude_controller',
+            '--param-file', robot_controllers
+        ]
     )    
+
     
 
     return LaunchDescription([
@@ -177,6 +190,7 @@ def generate_launch_description():
         joint_state_broadcaster_spawner,
         # joint_trajectory_controller_spawner
         joint_position_spawner,
+        att_controller_spawner,
         # gz_sim,
         # ros2_control_node
     ])

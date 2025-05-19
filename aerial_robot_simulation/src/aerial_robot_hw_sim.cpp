@@ -664,27 +664,6 @@ hardware_interface::return_type AerialRobotHwSim::write(const rclcpp::Time& /*ti
 
   return hardware_interface::return_type::OK;
 }
-
-void AerialRobotHwSim::setImuData(const ignition::math::Vector3d& linear_acceleration,
-                                  const ignition::math::Vector3d& angular_velocity) {
-  imu_acc_[0] = linear_acceleration.X();
-  imu_acc_[1] = linear_acceleration.Y();
-  imu_acc_[2] = linear_acceleration.Z();
-  imu_gyro_[0] = angular_velocity.X();
-  imu_gyro_[1] = angular_velocity.Y();
-  imu_gyro_[2] = angular_velocity.Z();
-}
-
-void AerialRobotHwSim::setMagData(const ignition::math::Vector3d& magnetic_field) {
-  mag_field_[0] = magnetic_field.X();
-  mag_field_[1] = magnetic_field.Y();
-  mag_field_[2] = magnetic_field.Z();
-}
-
-void AerialRobotHwSim::configSpinalIface(rclcpp::Node::SharedPtr node) {
-  node_ = node;
-  spinal_iface_.init(node_, rotor_n_dof_);
-}
 }  // namespace gz_ros2_control
 
 PLUGINLIB_EXPORT_CLASS(gz_ros2_control::AerialRobotHwSim, gz_ros2_control::GazeboSimSystemInterface)

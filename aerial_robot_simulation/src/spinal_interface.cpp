@@ -4,9 +4,9 @@ namespace hardware_interface {
 
 SpinalInterface::SpinalInterface() { on_ground_ = true; }
 
-bool SpinalInterface::init(const rclcpp::Node::SharedPtr& node, int joint_num) {
-  joint_num_ = joint_num;
-  spinal_state_estimator_.init(node);
+bool SpinalInterface::init(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node) {
+  node_ = node;
+  spinal_state_estimator_.init(node_);
   is_init_ = true;
   return true;
 }

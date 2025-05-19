@@ -9,7 +9,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 # find_package(gazebo_ros REQUIRED)
-# find_package(controller_interface REQUIRED)
+find_package(controller_interface REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
@@ -136,8 +136,38 @@ target_include_directories(aerial_robot_ign_plugin PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   )
 
+
+add_library(simulation_attitude_controller SHARED
+  src/simulation_attitude_controller.cpp)
+ament_target_dependencies(simulation_attitude_controller
+  ros_gz_sim
+  rclcpp
+  rclcpp_lifecycle
+  hardware_interface
+  pluginlib
+  nav_msgs
+  geometry_msgs
+  gz_ros2_control
+  ignition-gazebo6
+  controller_interface
+  )
+target_link_libraries(simulation_attitude_controller
+  spinal_interface
+  )
+
+pluginlib_export_plugin_description_file(
+  gz_ros2_control
+  aerial_robot_hw_sim_plugins.xml
+  )
+
+pluginlib_export_plugin_description_file(
+  controller_interface
+  flight_controllers_plugins.xml
+  )
+
+
 install(
-  TARGETS rotor_handle_lib spinal_interface aerial_robot_hw_sim aerial_robot_ign_plugin
+  TARGETS rotor_handle_lib spinal_interface aerial_robot_hw_sim aerial_robot_ign_plugin simulation_attitude_controller
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin

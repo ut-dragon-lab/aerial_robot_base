@@ -11,6 +11,7 @@
 #include <limits>
 #include <nav_msgs/msg/odometry.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp>
 #include <stdexcept>
 
 namespace hardware_interface {
@@ -19,7 +20,7 @@ class SpinalInterface {
  public:
   SpinalInterface();
 
-  bool init(const rclcpp::Node::SharedPtr& node, int joint_num);
+  bool init(std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node);
 
   uint8_t getJointNum() const { return joint_num_; }
   bool isInit() const { return is_init_; }
@@ -30,10 +31,12 @@ class SpinalInterface {
   void setGroundTruthStates(double q_x, double q_y, double q_z, double q_w, double w_x, double w_y, double w_z);
 
   void stateEstimate();
+  inline void onGround(bool flag) { on_ground_ = flag; }
 
   StateEstimate* getEstimatorPtr() { return &spinal_state_estimator_; }
 
  private:
+  std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node_;
   uint8_t joint_num_{0};
   bool on_ground_{true};
   StateEstimate spinal_state_estimator_;
