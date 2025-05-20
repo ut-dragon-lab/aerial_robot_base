@@ -19,6 +19,7 @@
 #include <ignition/gazebo/components/ParentEntity.hh>
 #include <ignition/gazebo/components/Pose.hh>
 #include <ignition/gazebo/components/Sensor.hh>
+#include <ignition/math.hh>
 #include <ignition/transport/Node.hh>
 #include <limits>
 #include <map>
@@ -177,6 +178,12 @@ class gz_ros2_control::AerialRobotHwSimPrivate {
 
   // clients
   std::shared_ptr<rclcpp::SyncParametersClient> client_ptr_;
+
+  // time
+  rclcpp::Time last_ground_truth_time_, last_mocap_time_, last_pos_read_time_;
+
+  // last position of baselink frame
+  ignition::math::Vector3d last_baselink_pos_;
 };
 
 namespace gz_ros2_control {
@@ -618,24 +625,115 @@ hardware_interface::return_type AerialRobotHwSim::read(const rclcpp::Time& sim_t
   for (auto& imu : dataPtr->imus_) {
     auto imuEnt = imu->sim_imu_sensors_;
     if (imuEnt == sim::kNullEntity) {
-      RCLCPP_WARN_STREAM(this->nh_->get_logger(), "Cannot find IMU sensor");
+      RCLCPP_WARN_STREAM(this->nh_->get_logger(), "Cannot find FC link");
       continue;
     }
-    if (auto poseComp = dataPtr->ecm->Component<sim::components::WorldPose>(imuEnt)) {
+    auto poseComp = dataPtr->ecm->Component<sim::components::WorldPose>(imuEnt);
+    auto angVelComp = dataPtr->ecm->Component<sim::components::AngularVelocity>(imuEnt);
+    if (poseComp && angVelComp) {
       const auto& pose = poseComp->Data();
-      geometry_msgs::msg::PoseStamped ps;
-      ps.header.stamp = sim_time;
-      ps.header.frame_id = "world";
-      ps.pose.position.x = pose.Pos().X();
-      ps.pose.position.y = pose.Pos().Y();
-      ps.pose.position.z = pose.Pos().Z();
-      ps.pose.orientation.w = pose.Rot().W();
-      ps.pose.orientation.x = pose.Rot().X();
-      ps.pose.orientation.y = pose.Rot().Y();
-      ps.pose.orientation.z = pose.Rot().Z();
-      dataPtr->mocap_pub_->publish(ps);
+      const auto& ang_vel = angVelComp->Data();
+      const auto& lin_vel =
+          (pose.Pos() - this->dataPtr->last_baselink_pos_) /
+          (sim_time.seconds() -
+           this->dataPtr->last_pos_read_time_.seconds());  // We don't have a linear velocity component for imu link
+      this->dataPtr->last_baselink_pos_ = pose.Pos();
+      this->dataPtr->last_pos_read_time_ = sim_time;
+      // ground truth
+      nav_msgs::msg::Odometry odom_msg;
+      odom_msg.header.stamp = sim_time;
+      odom_msg.pose.pose.position.x =
+          pose.Pos().X() + aerial_robot_simulation::gaussianKernel(this->dataPtr->ground_truth_pos_noise_);
+      odom_msg.pose.pose.position.y =
+          pose.Pos().Y() + aerial_robot_simulation::gaussianKernel(this->dataPtr->ground_truth_pos_noise_);
+      odom_msg.pose.pose.position.z =
+          pose.Pos().Z() + aerial_robot_simulation::gaussianKernel(this->dataPtr->ground_truth_pos_noise_);
+
+      ignition::math::Vector3d delta_euler(
+          aerial_robot_simulation::addNoise(this->dataPtr->ground_truth_rot_curr_drift_.X(),
+                                            this->dataPtr->ground_truth_rot_drift_,
+                                            this->dataPtr->ground_truth_rot_drift_frequency_, 0,
+                                            this->dataPtr->ground_truth_rot_noise_, period.seconds()),
+          aerial_robot_simulation::addNoise(this->dataPtr->ground_truth_rot_curr_drift_.Y(),
+                                            this->dataPtr->ground_truth_rot_drift_,
+                                            this->dataPtr->ground_truth_rot_drift_frequency_, 0,
+                                            this->dataPtr->ground_truth_rot_noise_, period.seconds()),
+          aerial_robot_simulation::addNoise(this->dataPtr->ground_truth_rot_curr_drift_.Z(),
+                                            this->dataPtr->ground_truth_rot_drift_,
+                                            this->dataPtr->ground_truth_rot_drift_frequency_, 0,
+                                            this->dataPtr->ground_truth_rot_noise_, period.seconds()));
+      ignition::math::Quaterniond q_noise = pose.Rot() * ignition::math::Quaterniond(delta_euler);
+      odom_msg.pose.pose.orientation.x = q_noise.X();
+      odom_msg.pose.pose.orientation.y = q_noise.Y();
+      odom_msg.pose.pose.orientation.z = q_noise.Z();
+      odom_msg.pose.pose.orientation.w = q_noise.W();
+
+      odom_msg.twist.twist.linear.x =
+          lin_vel.X() - +aerial_robot_simulation::addNoise(this->dataPtr->ground_truth_vel_curr_drift_.X(),
+                                                           this->dataPtr->ground_truth_vel_drift_,
+                                                           this->dataPtr->ground_truth_vel_drift_frequency_, 0,
+                                                           this->dataPtr->ground_truth_vel_noise_, period.seconds());
+      odom_msg.twist.twist.linear.y =
+          lin_vel.Y() + aerial_robot_simulation::addNoise(this->dataPtr->ground_truth_vel_curr_drift_.Y(),
+                                                          this->dataPtr->ground_truth_vel_drift_,
+                                                          this->dataPtr->ground_truth_vel_drift_frequency_, 0,
+                                                          this->dataPtr->ground_truth_vel_noise_, period.seconds());
+      odom_msg.twist.twist.linear.z =
+          lin_vel.Z() + aerial_robot_simulation::addNoise(this->dataPtr->ground_truth_vel_curr_drift_.Z(),
+                                                          this->dataPtr->ground_truth_vel_drift_,
+                                                          this->dataPtr->ground_truth_vel_drift_frequency_, 0,
+                                                          this->dataPtr->ground_truth_vel_noise_, period.seconds());
+
+      odom_msg.twist.twist.angular.x =
+          ang_vel.X() + aerial_robot_simulation::addNoise(this->dataPtr->ground_truth_angular_curr_drift_.X(),
+                                                          this->dataPtr->ground_truth_angular_drift_,
+                                                          this->dataPtr->ground_truth_angular_drift_frequency_, 0,
+                                                          this->dataPtr->ground_truth_angular_noise_, period.seconds());
+      odom_msg.twist.twist.angular.y =
+          ang_vel.Y() + aerial_robot_simulation::addNoise(this->dataPtr->ground_truth_angular_curr_drift_.Y(),
+                                                          this->dataPtr->ground_truth_angular_drift_,
+                                                          this->dataPtr->ground_truth_angular_drift_frequency_, 0,
+                                                          this->dataPtr->ground_truth_angular_noise_, period.seconds());
+      odom_msg.twist.twist.angular.z =
+          ang_vel.Z() + aerial_robot_simulation::addNoise(this->dataPtr->ground_truth_angular_curr_drift_.Z(),
+                                                          this->dataPtr->ground_truth_angular_drift_,
+                                                          this->dataPtr->ground_truth_angular_drift_frequency_, 0,
+                                                          this->dataPtr->ground_truth_angular_noise_, period.seconds());
+
+      // TODO:Set ground truth value to spinal interface
+
+      if (sim_time.seconds() - this->dataPtr->last_ground_truth_time_.seconds() >
+          this->dataPtr->ground_truth_pub_rate_) {
+        this->dataPtr->ground_truth_pub_->publish(odom_msg);
+        this->dataPtr->last_ground_truth_time_ = sim_time;
+      }
+
+      if (sim_time.seconds() - this->dataPtr->last_mocap_time_.seconds() > this->dataPtr->mocap_pub_rate_) {
+        geometry_msgs::msg::PoseStamped pose_msg;
+        pose_msg.header = odom_msg.header;
+
+        pose_msg.pose.position.x =
+            odom_msg.pose.pose.position.x + aerial_robot_simulation::gaussianKernel(this->dataPtr->mocap_pos_noise_);
+        pose_msg.pose.position.y =
+            odom_msg.pose.pose.position.y + aerial_robot_simulation::gaussianKernel(this->dataPtr->mocap_pos_noise_);
+        pose_msg.pose.position.z =
+            odom_msg.pose.pose.position.z + aerial_robot_simulation::gaussianKernel(this->dataPtr->mocap_pos_noise_);
+
+        delta_euler =
+            ignition::math::Vector3d(aerial_robot_simulation::gaussianKernel(this->dataPtr->mocap_rot_noise_),
+                                     aerial_robot_simulation::gaussianKernel(this->dataPtr->mocap_rot_noise_),
+                                     aerial_robot_simulation::gaussianKernel(this->dataPtr->mocap_rot_noise_));
+        q_noise = pose.Rot() * ignition::math::Quaterniond(delta_euler);
+        pose_msg.pose.orientation.x = q_noise.X();
+        pose_msg.pose.orientation.y = q_noise.Y();
+        pose_msg.pose.orientation.z = q_noise.Z();
+        pose_msg.pose.orientation.w = q_noise.W();
+
+        this->dataPtr->last_mocap_time_ = sim_time;
+        this->dataPtr->mocap_pub_->publish(pose_msg);
+      }
     } else {
-      RCLCPP_WARN_STREAM(this->nh_->get_logger(), "IMU sensor doesn't have pose info");
+      RCLCPP_WARN_STREAM(this->nh_->get_logger(), "FC link doesn't have pose info");
     }
   }
 

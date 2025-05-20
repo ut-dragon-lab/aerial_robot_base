@@ -90,7 +90,7 @@ ament_target_dependencies(aerial_robot_hw_sim
   # urdf
   # tinyxml2_vendor
   # TinyXML2
-  # ignition-math6
+  ignition-math6
   gz_ros2_control
   ignition-gazebo6
   # aerial_robot_model
