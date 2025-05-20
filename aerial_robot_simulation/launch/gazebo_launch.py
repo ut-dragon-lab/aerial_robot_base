@@ -27,6 +27,8 @@ def generate_launch_description():
     robot_name   = LaunchConfiguration('robot_name')
     robot_description_content = LaunchConfiguration('robot_description_content')
 
+    sim_param_file = os.path.join(pkg_share, 'config', 'Gazebo.yaml')
+
     robot_controllers = PathJoinSubstitution(
         [
             FindPackageShare('aerial_robot_simulation'),
@@ -85,7 +87,15 @@ def generate_launch_description():
         name='GZ_SIM_SYSTEM_PLUGIN_PATH',
         value=os.path.join('/opt/ros/humble/lib') + ':' +
               os.environ.get('GZ_SIM_SYSTEM_PLUGIN_PATH', '')
-    )    
+    )
+
+    sim_param_server = Node(
+        package='aerial_robot_simulation',
+        executable='sim_param_server',
+        name='sim_param_server',
+        namespace='hydrus',
+        parameters=[sim_param_file],
+    )
 
 
     # 1) Start Gazebo ignition (without GUI)
@@ -112,13 +122,13 @@ def generate_launch_description():
 
     # 3) Spawn robot
     spawn_robot = Node(
-                package='ros_gz_sim',
-                executable='create',
-                arguments=[
-                    '-name',  robot_name,
-                    '-topic', '/hydrus/robot_description'
-                ],
-                output='screen'
+        package='ros_gz_sim',
+        executable='create',
+        arguments=[
+            '-name',  robot_name,
+            '-topic', '/hydrus/robot_description'
+        ],
+        output='screen'
     )
 
     # 4) Start GUI
@@ -181,6 +191,7 @@ def generate_launch_description():
         set_ign_resource_path,
         set_ign_default_path,
         set_ign_plugin_path,
+        sim_param_server,
         # gz_sim,
         ign_server,
         clock_bridge,
