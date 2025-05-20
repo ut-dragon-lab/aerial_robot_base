@@ -12,6 +12,8 @@
 #include <ignition/gazebo/components/JointVelocityCmd.hh>
 #include <ignition/gazebo/components/JointVelocityReset.hh>
 #include <ignition/gazebo/components/LinearAcceleration.hh>
+#include <ignition/gazebo/components/LinearVelocity.hh>
+#include <ignition/gazebo/components/Link.hh>
 #include <ignition/gazebo/components/Magnetometer.hh>
 #include <ignition/gazebo/components/Name.hh>
 #include <ignition/gazebo/components/ParentEntity.hh>
@@ -155,8 +157,20 @@ class gz_ros2_control::AerialRobotHwSimPrivate {
   /// \brief Gain which converts position error to a velocity command
   double position_proportional_gain_;
 
-  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub_;
-  rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr twist_pub_;
+  // noise nad drift parameters
+  double mocap_rot_noise_, mocap_pos_noise_;
+  double ground_truth_pos_noise_, ground_truth_vel_noise_, ground_truth_rot_noise_, ground_truth_angular_noise_;
+  ignition::math::Vector3d ground_truth_rot_curr_drift_, ground_truth_vel_curr_drift_, ground_truth_angular_curr_drift_;
+  double ground_truth_rot_drift_, ground_truth_vel_drift_, ground_truth_angular_drift_;
+  double ground_truth_rot_drift_frequency_, ground_truth_vel_drift_frequency_, ground_truth_angular_drift_frequency_;
+
+  // ROS2 publishers
+  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr mocap_pub_;
+  rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr ground_truth_pub_;
+
+  // publish rates
+  double ground_truth_pub_rate_;
+  double mocap_pub_rate_;
 };
 
 namespace gz_ros2_control {
@@ -174,8 +188,8 @@ bool AerialRobotHwSim::initSim(rclcpp::Node::SharedPtr& model_nh, std::map<std::
   this->dataPtr->update_rate = &update_rate;
 
   // Publisher for world pose/twist
-  this->dataPtr->pose_pub_ = this->nh_->create_publisher<geometry_msgs::msg::PoseStamped>("/robot/world_pose", 10);
-  this->dataPtr->twist_pub_ = this->nh_->create_publisher<geometry_msgs::msg::TwistStamped>("/robot/world_twist", 10);
+  this->dataPtr->mocap_pub_ = this->nh_->create_publisher<geometry_msgs::msg::PoseStamped>("mocap/pose", 10);
+  this->dataPtr->ground_truth_pub_ = this->nh_->create_publisher<nav_msgs::msg::Odometry>("ground_truth", 10);
 
   RCLCPP_DEBUG(this->nh_->get_logger(), "n_dof_ %lu", this->dataPtr->n_dof_);
 
@@ -190,8 +204,17 @@ bool AerialRobotHwSim::initSim(rclcpp::Node::SharedPtr& model_nh, std::map<std::
     this->nh_->get_parameter("position_proportional_gain", this->dataPtr->position_proportional_gain_);
   }
 
+  try {
+    this->dataPtr->mocap_rot_noise_ = this->nh_->declare_parameter<double>("mocap_rot_noise", 0.0);
+  } catch (rclcpp::exceptions::ParameterAlreadyDeclaredException& ex) {
+    this->nh_->get_parameter("mocap_rot_noise", this->dataPtr->mocap_rot_noise_);
+  }
+
   RCLCPP_INFO_STREAM(this->nh_->get_logger(),
                      "The position_proportional_gain has been set to: " << this->dataPtr->position_proportional_gain_);
+
+  RCLCPP_ERROR_STREAM(this->nh_->get_logger(),
+                      "The mocap rotational noise has been set to: " << this->dataPtr->mocap_rot_noise_);
 
   if (this->dataPtr->n_dof_ == 0) {
     RCLCPP_ERROR_STREAM(this->nh_->get_logger(), "There is no joint available");
@@ -205,7 +228,7 @@ bool AerialRobotHwSim::initSim(rclcpp::Node::SharedPtr& model_nh, std::map<std::
     auto it = enableJoints.find(joint_name);
     if (it == enableJoints.end()) {
       RCLCPP_WARN_STREAM(this->nh_->get_logger(),
-                         "Skipping joint in the URDF named '" << joint_name << "' which is not in the gazebo model.");
+                         "Skipping joint in the URDF named '" << joint_name << "' which is not in the gazebo model.e");
       continue;
     }
 
@@ -468,7 +491,7 @@ CallbackReturn AerialRobotHwSim::on_init(const hardware_interface::HardwareInfo&
   return CallbackReturn::SUCCESS;
 }
 
-CallbackReturn AerialRobotHwSim::on_configure(const rclcpp_lifecycle::State& /*previous_state*/) {
+CallbackReturn AerialRobotHwSim::on_configure(const rclcpp_lifecycle::State& previous_state) {
   RCLCPP_INFO(this->nh_->get_logger(), "System Successfully configured!");
 
   return CallbackReturn::SUCCESS;
@@ -492,8 +515,7 @@ CallbackReturn AerialRobotHwSim::on_deactivate(const rclcpp_lifecycle::State& pr
   return hardware_interface::SystemInterface::on_deactivate(previous_state);
 }
 
-hardware_interface::return_type AerialRobotHwSim::read(const rclcpp::Time& /*time*/,
-                                                       const rclcpp::Duration& /*period*/) {
+hardware_interface::return_type AerialRobotHwSim::read(const rclcpp::Time& sim_time, const rclcpp::Duration& period) {
   for (unsigned int i = 0; i < this->dataPtr->joints_.size(); ++i) {
     if (this->dataPtr->joints_[i].sim_joint == sim::kNullEntity) {
       continue;
@@ -548,6 +570,30 @@ hardware_interface::return_type AerialRobotHwSim::read(const rclcpp::Time& /*tim
     }
   }
 
+  for (auto& imu : dataPtr->imus_) {
+    auto imuEnt = imu->sim_imu_sensors_;
+    if (imuEnt == sim::kNullEntity) {
+      RCLCPP_WARN_STREAM(this->nh_->get_logger(), "Cannot find IMU sensor");
+      continue;
+    }
+    if (auto poseComp = dataPtr->ecm->Component<sim::components::WorldPose>(imuEnt)) {
+      const auto& pose = poseComp->Data();
+      geometry_msgs::msg::PoseStamped ps;
+      ps.header.stamp = sim_time;
+      ps.header.frame_id = "world";
+      ps.pose.position.x = pose.Pos().X();
+      ps.pose.position.y = pose.Pos().Y();
+      ps.pose.position.z = pose.Pos().Z();
+      ps.pose.orientation.w = pose.Rot().W();
+      ps.pose.orientation.x = pose.Rot().X();
+      ps.pose.orientation.y = pose.Rot().Y();
+      ps.pose.orientation.z = pose.Rot().Z();
+      dataPtr->mocap_pub_->publish(ps);
+    } else {
+      RCLCPP_WARN_STREAM(this->nh_->get_logger(), "IMU sensor doesn't have pose info");
+    }
+  }
+
   return hardware_interface::return_type::OK;
 }
 
@@ -584,8 +630,7 @@ hardware_interface::return_type AerialRobotHwSim::perform_command_mode_switch(
   return hardware_interface::return_type::OK;
 }
 
-hardware_interface::return_type AerialRobotHwSim::write(const rclcpp::Time& /*time*/,
-                                                        const rclcpp::Duration& /*period*/) {
+hardware_interface::return_type AerialRobotHwSim::write(const rclcpp::Time& sim_time, const rclcpp::Duration& period) {
   for (unsigned int i = 0; i < this->dataPtr->joints_.size(); ++i) {
     if (this->dataPtr->joints_[i].sim_joint == sim::kNullEntity) {
       continue;

@@ -46,10 +46,10 @@ class AerialRobotHwSim : public gz_ros2_control::GazeboSimSystemInterface {
                                                               const std::vector<std::string>& stop_interfaces) override;
 
   // Documentation Inherited
-  hardware_interface::return_type read(const rclcpp::Time& time, const rclcpp::Duration& period) override;
+  hardware_interface::return_type read(const rclcpp::Time& sim_time, const rclcpp::Duration& period) override;
 
   // Documentation Inherited
-  hardware_interface::return_type write(const rclcpp::Time& time, const rclcpp::Duration& period) override;
+  hardware_interface::return_type write(const rclcpp::Time& sim_time, const rclcpp::Duration& period) override;
 
   // Documentation Inherited
   bool initSim(rclcpp::Node::SharedPtr& model_nh, std::map<std::string, sim::Entity>& joints,
