@@ -155,6 +155,12 @@ target_link_libraries(simulation_attitude_controller
   spinal_interface
   )
 
+add_executable(sim_param_server src/sim_param_server.cpp)
+ament_target_dependencies(sim_param_server
+  rclcpp
+  )
+
+
 pluginlib_export_plugin_description_file(
   gz_ros2_control
   aerial_robot_hw_sim_plugins.xml
@@ -167,10 +173,11 @@ pluginlib_export_plugin_description_file(
 
 
 install(
-  TARGETS rotor_handle_lib spinal_interface aerial_robot_hw_sim aerial_robot_ign_plugin simulation_attitude_controller
+  TARGETS rotor_handle_lib spinal_interface aerial_robot_hw_sim aerial_robot_ign_plugin simulation_attitude_controller sim_param_server
+  EXPORT export_${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
-  RUNTIME DESTINATION bin
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 
 install(
@@ -192,5 +199,7 @@ install(
 )
 
 install(PROGRAMS scripts/gazebo_control_bridge.py DESTINATION lib/${PROJECT_NAME})
+
+ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 
 ament_package()

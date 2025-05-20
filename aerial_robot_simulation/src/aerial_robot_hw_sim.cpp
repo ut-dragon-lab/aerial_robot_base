@@ -171,6 +171,12 @@ class gz_ros2_control::AerialRobotHwSimPrivate {
   // publish rates
   double ground_truth_pub_rate_;
   double mocap_pub_rate_;
+
+  // node to get ros2 param
+  rclcpp::Node::SharedPtr param_node_;
+
+  // clients
+  std::shared_ptr<rclcpp::SyncParametersClient> client_ptr_;
 };
 
 namespace gz_ros2_control {
@@ -191,6 +197,20 @@ bool AerialRobotHwSim::initSim(rclcpp::Node::SharedPtr& model_nh, std::map<std::
   this->dataPtr->mocap_pub_ = this->nh_->create_publisher<geometry_msgs::msg::PoseStamped>("mocap/pose", 10);
   this->dataPtr->ground_truth_pub_ = this->nh_->create_publisher<nav_msgs::msg::Odometry>("ground_truth", 10);
 
+  // clients to get parameters for simulation
+  this->dataPtr->param_node_ = std::make_shared<rclcpp::Node>("param_client_node");
+  std::string robot_ns = this->nh_->get_namespace();
+  this->dataPtr->client_ptr_ =
+      std::make_shared<rclcpp::SyncParametersClient>(this->dataPtr->param_node_, robot_ns + "/sim_param_server");
+  if (!this->dataPtr->client_ptr_->wait_for_service(std::chrono::seconds(5))) {
+    RCLCPP_ERROR_STREAM(this->dataPtr->param_node_->get_logger(), "Sim param client was not found.");
+    return 1;
+  }
+  querySimPrams();
+
+  RCLCPP_ERROR_STREAM(this->nh_->get_logger(),
+                      "The mocap rotational noise has been set to: " << this->dataPtr->mocap_rot_noise_);
+
   RCLCPP_DEBUG(this->nh_->get_logger(), "n_dof_ %lu", this->dataPtr->n_dof_);
 
   this->dataPtr->joints_.resize(this->dataPtr->n_dof_);
@@ -204,17 +224,8 @@ bool AerialRobotHwSim::initSim(rclcpp::Node::SharedPtr& model_nh, std::map<std::
     this->nh_->get_parameter("position_proportional_gain", this->dataPtr->position_proportional_gain_);
   }
 
-  try {
-    this->dataPtr->mocap_rot_noise_ = this->nh_->declare_parameter<double>("mocap_rot_noise", 0.0);
-  } catch (rclcpp::exceptions::ParameterAlreadyDeclaredException& ex) {
-    this->nh_->get_parameter("mocap_rot_noise", this->dataPtr->mocap_rot_noise_);
-  }
-
   RCLCPP_INFO_STREAM(this->nh_->get_logger(),
                      "The position_proportional_gain has been set to: " << this->dataPtr->position_proportional_gain_);
-
-  RCLCPP_ERROR_STREAM(this->nh_->get_logger(),
-                      "The mocap rotational noise has been set to: " << this->dataPtr->mocap_rot_noise_);
 
   if (this->dataPtr->n_dof_ == 0) {
     RCLCPP_ERROR_STREAM(this->nh_->get_logger(), "There is no joint available");
@@ -468,6 +479,40 @@ void AerialRobotHwSim::registerSensors(const hardware_interface::HardwareInfo& h
         this->dataPtr->mags_.push_back(magData);
         return true;
       });
+}
+
+void AerialRobotHwSim::querySimPrams() {
+  std::vector<std::string> param_names;
+  param_names.push_back("ground_truth_pub_rate");
+  param_names.push_back("ground_truth_pos_noise");
+  param_names.push_back("ground_truth_vel_noise");
+  param_names.push_back("ground_truth_rot_noise");
+  param_names.push_back("ground_truth_angular_noise");
+  param_names.push_back("ground_truth_rot_drift");
+  param_names.push_back("ground_truth_vel_drift");
+  param_names.push_back("ground_truth_angular_drift");
+  param_names.push_back("ground_truth_rot_drift_frequency");
+  param_names.push_back("ground_truth_vel_drift_frequency");
+  param_names.push_back("ground_truth_angular_drift_frequency");
+  param_names.push_back("mocap_pub_rate");
+  param_names.push_back("mocap_pos_noise");
+  param_names.push_back("mocap_rot_noise");
+
+  std::vector<rclcpp::Parameter> params = this->dataPtr->client_ptr_->get_parameters(param_names);
+  this->dataPtr->ground_truth_pub_rate_ = params[0].get_value<double>();
+  this->dataPtr->ground_truth_pos_noise_ = params[1].get_value<double>();
+  this->dataPtr->ground_truth_vel_noise_ = params[2].get_value<double>();
+  this->dataPtr->ground_truth_rot_noise_ = params[3].get_value<double>();
+  this->dataPtr->ground_truth_angular_noise_ = params[4].get_value<double>();
+  this->dataPtr->ground_truth_rot_drift_ = params[5].get_value<double>();
+  this->dataPtr->ground_truth_vel_drift_ = params[6].get_value<double>();
+  this->dataPtr->ground_truth_angular_drift_ = params[7].get_value<double>();
+  this->dataPtr->ground_truth_rot_drift_frequency_ = params[8].get_value<double>();
+  this->dataPtr->ground_truth_vel_drift_frequency_ = params[9].get_value<double>();
+  this->dataPtr->ground_truth_angular_drift_frequency_ = params[10].get_value<double>();
+  this->dataPtr->mocap_pub_rate_ = params[11].get_value<double>();
+  this->dataPtr->mocap_pos_noise_ = params[12].get_value<double>();
+  this->dataPtr->mocap_rot_noise_ = params[13].get_value<double>();
 }
 
 CallbackReturn AerialRobotHwSim::on_init(const hardware_interface::HardwareInfo& system_info) {

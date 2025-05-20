@@ -30,6 +30,27 @@
 
 /**/attitude_controller:
   ros__parameters:
-    ros__parameters:
-      imu: "spinal_imu"
-      imu: "spinal_mag"
+    imu: "spinal_imu"
+    mag: "spinal_mag"
+
+/**/sim_param_server:
+  ros__parameters:
+
+    ground_truth_pub_rate: 0.01
+    ground_truth_pos_noise: 0.001
+    ground_truth_vel_noise: 0.005
+    ground_truth_rot_noise: 0.001
+    ground_truth_angular_noise: 0.005
+
+    ground_truth_vel_drift: 0.1
+    ground_truth_rot_drift: 0.1
+    ground_truth_angular_drift: 0.01
+
+    ground_truth_vel_drift_frequency: 1.0
+    ground_truth_rot_drift_frequency: 1.0
+    ground_truth_angular_drift_frequency: 0.01
+
+    mocap_pub_rate: 0.01
+    mocap_pos_noise: 0.001
+    mocap_rot_noise: 0.001
+

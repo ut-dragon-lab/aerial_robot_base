@@ -10,6 +10,7 @@
 #include <memory>
 #include <nav_msgs/msg/odometry.hpp>
 #include <pluginlib/class_list_macros.hpp>
+#include <rclcpp/parameter_client.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/magnetic_field.hpp>
 #include <string>
@@ -21,6 +22,7 @@
 
 namespace gz_ros2_control {
 using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
+
 class AerialRobotHwSimPrivate;
 
 class AerialRobotHwSim : public gz_ros2_control::GazeboSimSystemInterface {
@@ -74,6 +76,8 @@ class AerialRobotHwSim : public gz_ros2_control::GazeboSimSystemInterface {
   hardware_interface::HardwareInfo hw_info_;
 
   void registerSensors(const hardware_interface::HardwareInfo& hardware_info);
+
+  void querySimPrams();
 
   /// \brief Private data class
   std::unique_ptr<AerialRobotHwSimPrivate> dataPtr;
