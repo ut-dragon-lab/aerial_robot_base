@@ -207,6 +207,7 @@ def generate_launch_description():
             'spawn_x': LaunchConfiguration('spawn_x'),
             'spawn_y': LaunchConfiguration('spawn_y'),
             'spawn_z': LaunchConfiguration('spawn_z'),
+            'servo_param_file':   servo_param_file,
         }.items(),
         condition=IfCondition(sim),
     )
