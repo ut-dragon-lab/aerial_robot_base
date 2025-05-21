@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<profiles xmlns="http://www.eprosima.com/XMLSchemas/fastRTPS_Profiles">
+  <!-- デフォルト参加者プロファイルとして登録 -->
+  <participant profile_name="participant_profile_ros2" is_default_profile="true">
+    <rtps>
+      <builtin>
+        <discovery_config>
+          <!-- プロセス終了後、1秒で消失とみなす -->
+          <leaseDuration>
+            <sec>1</sec>
+            <nanosec>0</nanosec>
+          </leaseDuration>
+          <!-- SPDP アナウンス間隔を 0.25秒に短縮 -->
+          <leaseAnnouncement>
+            <sec>0</sec>
+            <nanosec>250000000</nanosec>
+          </leaseAnnouncement>
+        </discovery_config>
+      </builtin>
+    </rtps>
+  </participant>
+</profiles>
