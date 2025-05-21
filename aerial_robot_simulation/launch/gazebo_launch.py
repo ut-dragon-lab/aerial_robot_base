@@ -1,11 +1,12 @@
 import os
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, SetEnvironmentVariable, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, SetEnvironmentVariable, IncludeLaunchDescription, RegisterEventHandler, Shutdown
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, EnvironmentVariable, TextSubstitution, PythonExpression
 from launch_ros.substitutions import FindPackageShare, FindPackagePrefix
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue, ParameterFile
 from ament_index_python.packages import get_package_share_directory
+from launch.event_handlers import OnProcessExit
 
 def generate_launch_description():
 
@@ -86,6 +87,11 @@ def generate_launch_description():
         ]
     )
 
+    set_fastrtps_profile = SetEnvironmentVariable(
+        'FASTRTPS_DEFAULT_PROFILES_FILE',
+        os.path.join(pkg_share, 'config', 'fastrtps_profiles.xml')
+    )
+
     # --- Gazebo ---
     ign_server = ExecuteProcess(
         cmd=[
@@ -95,7 +101,7 @@ def generate_launch_description():
             '-s', 'libgazebo_ros_init.so',
             world
         ],
-        output='screen'
+        output='screen',
     )
 
     ign_client = ExecuteProcess(
@@ -103,7 +109,14 @@ def generate_launch_description():
             'ign', 'gazebo',
             '-g',
         ],
-        output='screen'
+        output='screen',
+    )
+
+    shutdown_handler = RegisterEventHandler(
+        OnProcessExit(
+            target_action=ign_server,
+            on_exit=[Shutdown()]
+        )
     )
 
     # --- Nodes ---
@@ -135,7 +148,7 @@ def generate_launch_description():
             '-y', spawn_y,
             '-z', spawn_z,
         ],
-        output='screen'
+        output='screen',
     )
 
     joint_state_broadcaster_spawner = Node(
@@ -170,7 +183,6 @@ def generate_launch_description():
         ]
     )
 
-
     ld = LaunchDescription()
     ld.add_action(world_arg)
     ld.add_action(robot_name_arg)
@@ -178,11 +190,13 @@ def generate_launch_description():
     ld.add_action(spawn_y_arg)
     ld.add_action(spawn_z_arg)
     ld.add_action(servo_param_file_arg)
+    ld.add_action(set_fastrtps_profile)
     ld.add_action(set_env)
     ld.add_action(set_ign_resource_path)
     ld.add_action(set_ign_default_path)
     ld.add_action(sim_param_server)
     ld.add_action(ign_server)
+    ld.add_action(shutdown_handler)
     ld.add_action(ign_client)
     ld.add_action(clock_bridge)
     ld.add_action(spawn_robot)
