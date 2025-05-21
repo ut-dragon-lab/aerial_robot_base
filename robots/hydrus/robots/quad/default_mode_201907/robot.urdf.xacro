@@ -108,4 +108,31 @@
     </inertial>
   </xacro:extra_module>
   <!-- end: gps -->
+
+  <ros2_control name="aerial_robot_sim_system" type="system">
+    <hardware>
+      <plugin>gz_ros2_control/AerialRobotHwSim</plugin>
+    </hardware>
+    <xacro:joint_actuation self="1"/>
+    <xacro:joint_actuation self="2"/>
+    <xacro:joint_actuation self="3"/>
+    <xacro:joint_actuation self="4"/>
+    <sensor name="spinal_imu">
+      <state_interface name="orientation.x"/>
+      <state_interface name="orientation.y"/>
+      <state_interface name="orientation.z"/>
+      <state_interface name="orientation.w"/>
+      <state_interface name="angular_velocity.x"/>
+      <state_interface name="angular_velocity.y"/>
+      <state_interface name="angular_velocity.z"/>
+      <state_interface name="linear_acceleration.x"/>
+      <state_interface name="linear_acceleration.y"/>
+      <state_interface name="linear_acceleration.z"/>
+    </sensor>
+    <sensor name="spinal_mag">
+      <state_interface name="field_tesla.x"/>
+      <state_interface name="field_tesla.y"/>
+      <state_interface name="field_tesla.z"/>
+    </sensor>    
+  </ros2_control>
 </robot>

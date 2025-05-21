@@ -4,83 +4,14 @@
     xmlns:xacro="http://www.ros.org/wiki/xacro" name="spinal" >
 
   <xacro:macro name="gazebo_spinal" params="robot_name imu_frame:=fc mag_frame:=magnet gps_frame:=gps">
-  <ros2_control name="aerial_robot_sim_system" type="system">
-    <hardware>
-      <plugin>gz_ros2_control/AerialRobotHwSim</plugin>
-    </hardware>
-    <joint name="joint1">
-      <command_interface name="position">
-        <param name="min">-15</param>
-        <param name="max">15</param>
-      </command_interface>
-      <state_interface name="position">
-        <param name="initial_value">0.0</param>
-      </state_interface>
-      <state_interface name="velocity"/>
-      <state_interface name="effort"/>
-    </joint>
-    <joint name="joint2">
-      <command_interface name="position">
-        <param name="min">-15</param>
-        <param name="max">15</param>
-      </command_interface>
-      <state_interface name="position">
-        <param name="initial_value">0.0</param>
-      </state_interface>
-      <state_interface name="velocity"/>
-      <state_interface name="effort"/>
-    </joint>
-    <joint name="joint3">
-      <command_interface name="position">
-        <param name="min">-15</param>
-        <param name="max">15</param>
-      </command_interface>
-      <state_interface name="position">
-        <param name="initial_value">0.0</param>
-      </state_interface>
-      <state_interface name="velocity"/>
-      <state_interface name="effort"/>
-    </joint>
-    <sensor name="spinal_imu">
-      <state_interface name="orientation.x"/>
-      <state_interface name="orientation.y"/>
-      <state_interface name="orientation.z"/>
-      <state_interface name="orientation.w"/>
-      <state_interface name="angular_velocity.x"/>
-      <state_interface name="angular_velocity.y"/>
-      <state_interface name="angular_velocity.z"/>
-      <state_interface name="linear_acceleration.x"/>
-      <state_interface name="linear_acceleration.y"/>
-      <state_interface name="linear_acceleration.z"/>
-    </sensor>
-    <sensor name="spinal_mag">
-      <state_interface name="field_tesla.x"/>
-      <state_interface name="field_tesla.y"/>
-      <state_interface name="field_tesla.z"/>
-    </sensor>    
-  </ros2_control>
-
   <gazebo>
     <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
       <parameters>$(find aerial_robot_simulation)/config/Gazebo.yaml</parameters>
       <ros>
-        <namespace>hydrus</namespace>
-        <!-- <remapping>/robot_description:=/robot_description_full</remapping> -->
+        <namespace>${robot_name}</namespace>
       </ros>
     </plugin>
-  </gazebo>  
-
-  <!-- <gazebo> -->
-  <!--   <plugin name="aerial_robot_simulation::AerialRobotIgn" filename="libaerial_robot_ign_plugin.so"> -->
-  <!--   </plugin> -->
-  <!-- </gazebo> -->
-    
-    <!-- imu plugin -->
-    <!--
-        note1: please do not use hector_gazebo_ros_imu, which calculates the acceleration in the parent link of the imu frame (e.g. fc -> link2)
-        note2: please do not trust the acceleration value from the multilinked model. Since the acceleration is calculated from the differential of veloctity (see https://bitbucket.org/osrf/gazebo/src/cde54284e90b59a9af9fade096946c0cd4a91c44/gazebo/sensors/ImuSensor.cc#lines-366:367). The internal force from joint create a very unstable acceleration to the link. Anyway, you can test the sensor fusio for general multirotor and transformable robot with only hovering motion.
-    -->
-
+  </gazebo>
     <gazebo reference="${imu_frame}">
       <sensor name="spinal_imu" type="imu">
         <imu>
