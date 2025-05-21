@@ -210,7 +210,7 @@ install(
 )
 
 install(
-  DIRECTORY include/ plugins/ launch/
+  DIRECTORY include plugins launch
   DESTINATION share/${PROJECT_NAME}
   USE_SOURCE_PERMISSIONS
   )

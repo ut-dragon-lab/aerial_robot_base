@@ -1,35 +1,54 @@
 import os
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, TimerAction, SetEnvironmentVariable, LogInfo, IncludeLaunchDescription, RegisterEventHandler
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, EnvironmentVariable, TextSubstitution, Command
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, SetEnvironmentVariable, IncludeLaunchDescription
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, EnvironmentVariable, TextSubstitution, PythonExpression
 from launch_ros.substitutions import FindPackageShare, FindPackagePrefix
 from launch_ros.actions import Node
-from launch.launch_description_sources import PythonLaunchDescriptionSource
-from ament_index_python.packages import get_package_share_directory, get_package_prefix
-from launch_ros.parameter_descriptions import ParameterValue
-from launch.event_handlers import OnProcessExit
+from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
+
+    # --- Load directory path ---
     pkg_share   = get_package_share_directory('aerial_robot_simulation')
-    pkg_prefix = get_package_prefix('aerial_robot_simulation')
-    ign_plugins_path = os.path.join(pkg_prefix, 'lib')
-
     default_world = os.path.join(pkg_share, 'gazebo_model', 'world', 'empty.world')
-    desc_arg = DeclareLaunchArgument(
-        'robot_description_content',
-        default_value='',
-        description='URDF (xacro result) passed from bringup'
-    )
-    world_arg      = DeclareLaunchArgument('world_sdf_file',     default_value=default_world,    description='Ignition world file')
-    robot_name_arg = DeclareLaunchArgument('robot_name', default_value='hydrus',       description='Entity name for spawn')
 
+    # --- LaunchConfiguration ---
     world        = LaunchConfiguration('world_sdf_file')
     robot_name   = LaunchConfiguration('robot_name')
-    robot_description_content = LaunchConfiguration('robot_description_content')
+    spawn_x = LaunchConfiguration('spawn_x')
+    spawn_y = LaunchConfiguration('spawn_y')
+    spawn_z = LaunchConfiguration('spawn_z')
 
-    sim_param_file = os.path.join(pkg_share, 'config', 'Gazebo.yaml')
+    # --- DeclareLaunchArgument ---
+    world_arg = DeclareLaunchArgument(
+        'world_sdf_file',
+        default_value=default_world,
+        description='Ignition world file'
+    )
+    robot_name_arg = DeclareLaunchArgument(
+        'robot_name',
+        default_value='',
+        description='Entity name for spawn'
+    )
+    spawn_x_arg = DeclareLaunchArgument(
+        'spawn_x',
+        default_value='0.0',
+        description='Initial X position'
+    )
+    spawn_y_arg = DeclareLaunchArgument(
+        'spawn_y',
+        default_value='0.0',
+        description='Initial Y position'
+    )
+    spawn_z_arg = DeclareLaunchArgument(
+        'spawn_z',
+        default_value='0.5',
+        description='Initial Z position'
+    )
 
-    robot_controllers = PathJoinSubstitution(
+
+    # --- Simlation parameter  ---
+    sim_param_file = PathJoinSubstitution(
         [
             FindPackageShare('aerial_robot_simulation'),
             'config',
@@ -37,14 +56,9 @@ def generate_launch_description():
         ]
     )
 
-
+    # --- environmental setting ---
     robot_prefix = FindPackagePrefix(robot_name)
-
-    robot_share_dir = PathJoinSubstitution([
-        robot_prefix,
-        'share'
-    ])
-        
+    robot_share_dir = PathJoinSubstitution([robot_prefix, 'share'])
     set_env = SetEnvironmentVariable(
         'DISPLAY', os.environ.get('DISPLAY','')
     )
@@ -58,47 +72,16 @@ def generate_launch_description():
         ]
     )
 
-    # set_ign_plugin_path = SetEnvironmentVariable(
-    #     name='IGN_GAZEBO_SYSTEM_PLUGIN_PATH',
-    #     value=(ign_plugins_path +
-    #            os.pathsep +
-    #            os.environ.get('IGN_GAZEBO_SYSTEM_PLUGIN_PATH', ''))
-    # )
-
-    set_ign_plugin_path = SetEnvironmentVariable(
+    set_ign_default_path = SetEnvironmentVariable(
         name='GZ_SIM_SYSTEM_PLUGIN_PATH',
         value=[
-            ign_plugins_path,
-            os.pathsep,
-            EnvironmentVariable('GZ_SIM_SYSTEM_PLUGIN_PATH', default_value='')
+            TextSubstitution(text='/opt/ros/humble/lib'),
+            TextSubstitution(text=os.pathsep),
+            EnvironmentVariable('GZ_SIM_SYSTEM_PLUGIN_PATH', default_value=''),
         ]
     )
 
-    # set_ign_default_path = SetEnvironmentVariable(
-    #     name='GZ_SIM_RESOURCE_PATH',
-    #     value=[
-    #         EnvironmentVariable('GZ_SIM_RESOURCE_PATH', default_value=''),
-    #         TextSubstitution(text=':'),
-    #         TextSubstitution(text='$GZ_SIM_SYSTEM_PLUGIN_PATH'),
-    #     ]
-    # )
-
-    set_ign_default_path = SetEnvironmentVariable(
-        name='GZ_SIM_SYSTEM_PLUGIN_PATH',
-        value=os.path.join('/opt/ros/humble/lib') + ':' +
-              os.environ.get('GZ_SIM_SYSTEM_PLUGIN_PATH', '')
-    )
-
-    sim_param_server = Node(
-        package='aerial_robot_simulation',
-        executable='sim_param_server',
-        name='sim_param_server',
-        namespace='hydrus',
-        parameters=[sim_param_file],
-    )
-
-
-    # 1) Start Gazebo ignition (without GUI)
+    # --- Gazebo ---
     ign_server = ExecuteProcess(
         cmd=[
             'ign', 'gazebo',
@@ -110,7 +93,23 @@ def generate_launch_description():
         output='screen'
     )
 
-    # 2) Topic bridge (temporary)
+    ign_client = ExecuteProcess(
+        cmd=[
+            'ign', 'gazebo',
+            '-g',
+        ],
+        output='screen'
+    )
+
+    # --- Nodes ---
+    sim_param_server = Node(
+        package='aerial_robot_simulation',
+        executable='sim_param_server',
+        name='sim_param_server',
+        namespace= robot_name,
+        parameters=[sim_param_file],
+    )
+
     clock_bridge = Node(
         package='ros_gz_bridge',
         executable='parameter_bridge',
@@ -119,89 +118,65 @@ def generate_launch_description():
         ],
         output='screen'
     )
-
-    # 3) Spawn robot
+    
     spawn_robot = Node(
         package='ros_gz_sim',
         executable='create',
         arguments=[
             '-name',  robot_name,
-            '-topic', '/hydrus/robot_description'
+            '-topic', PythonExpression(["'/' + '", robot_name, "' + '/robot_description'"]),
+            '-x', spawn_x,
+            '-y', spawn_y,
+            '-z', spawn_z,
         ],
         output='screen'
     )
 
-    # 4) Start GUI
-    ign_client = ExecuteProcess(
-           cmd=[
-                'ign', 'gazebo',
-                '-g',
-            ],
-            output='screen'
-        )
-
     joint_state_broadcaster_spawner = Node(
-        namespace='hydrus',
+        namespace= robot_name,
         package='controller_manager',
         executable='spawner',
         arguments=['joint_state_broadcaster'],
     )
 
-    # joint_trajectory_controller_spawner = Node(
-    #     namespace='hydrus',
-    #     package='controller_manager',
-    #     executable='spawner',
-    #     arguments=[
-    #         'joint_state_controller',
-    #         '--param-file',
-    #         robot_controllers,
-    #     ],
-    # )
-
     joint_position_spawner = Node(
-        namespace='hydrus',
+        namespace= robot_name,
         package='controller_manager',
         executable='spawner',
         name='spawn_joint_group_position_controller',
         output='screen',
         arguments=[
             'joint_group_position_controller',
-            '--param-file', robot_controllers
+            '--param-file', sim_param_file
         ]
     )
 
     att_controller_spawner = Node(
-        namespace='hydrus',
+        namespace= robot_name,
         package='controller_manager',
         executable='spawner',
         name='spawn_att_controller',
         output='screen',
         arguments=[
             'attitude_controller',
-            '--param-file', robot_controllers
+            '--param-file', sim_param_file
         ]
-    )    
+    )
 
-    
 
-    return LaunchDescription([
-        world_arg,
-        robot_name_arg,
-        set_env,
-        set_ign_resource_path,
-        set_ign_default_path,
-        set_ign_plugin_path,
-        sim_param_server,
-        # gz_sim,
-        ign_server,
-        clock_bridge,
-        # gz_sim_launch,
-        spawn_robot,
-        ign_client,
-        joint_state_broadcaster_spawner,
-        # joint_trajectory_controller_spawner
-        joint_position_spawner,
-        att_controller_spawner,
-        # gz_sim,
-        # ros2_control_node
-    ])
+    ld = LaunchDescription()
+    ld.add_action(world_arg)
+    ld.add_action(robot_name_arg)
+    ld.add_action(set_env)
+    ld.add_action(set_ign_resource_path)
+    ld.add_action(set_ign_default_path)
+    ld.add_action(sim_param_server)
+    ld.add_action(ign_server)
+    ld.add_action(ign_client)
+    ld.add_action(clock_bridge)
+    ld.add_action(spawn_robot)
+    ld.add_action(joint_state_broadcaster_spawner)
+    ld.add_action(joint_position_spawner)
+    ld.add_action(att_controller_spawner)    
+
+    return ld
