@@ -1,3 +1,10 @@
+// -*- mode: c++ -*-
+/*
+This file was implemented with reference to the interface of GazeboSimSystemclass in gz_ros2_controller
+(https://github.com/ros-controls/gz_ros2_control/tree/humble). In addition to the default interface, bridges for
+magnetometer and pseudo-motion capture are incorporated.
+*/
+
 #include "aerial_robot_simulation/aerial_robot_hw_sim.h"
 
 #include <ignition/msgs/imu.pb.h>
