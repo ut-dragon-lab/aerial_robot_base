@@ -27,7 +27,7 @@ find_package(ignition-gazebo6 REQUIRED)
 find_package(ignition-plugin1 REQUIRED)
 find_package(tinyxml2_vendor REQUIRED)
 find_package(TinyXML2 REQUIRED)
-find_package(ros_gz_sim REQUIRED)
+# find_package(ros_gz_sim REQUIRED)
 find_package(gz_ros2_control REQUIRED)
 find_package(ros2_control REQUIRED)
 find_package(controller_manager_msgs REQUIRED)
@@ -78,22 +78,15 @@ target_link_libraries(spinal_interface
 add_library(aerial_robot_hw_sim SHARED
   src/aerial_robot_hw_sim.cpp)
 ament_target_dependencies(aerial_robot_hw_sim
-  ros_gz_sim
   rclcpp
   rclcpp_lifecycle
   hardware_interface
   pluginlib
   nav_msgs
   geometry_msgs
-  # kdl_parser
-  # orocos_kdl
-  # urdf
-  # tinyxml2_vendor
-  # TinyXML2
   ignition-math6
   gz_ros2_control
   ignition-gazebo6
-  # aerial_robot_model
   )
 target_link_libraries(aerial_robot_hw_sim
   spinal_interface
@@ -103,44 +96,9 @@ pluginlib_export_plugin_description_file(
     aerial_robot_hw_sim_plugins.xml
 )
 
-add_library(aerial_robot_ign_plugin SHARED
-  src/aerial_robot_ign_plugin.cpp)
-ament_target_dependencies(aerial_robot_ign_plugin
-  ros_gz_sim
-  rclcpp
-  rclcpp_lifecycle
-  hardware_interface
-  pluginlib
-  nav_msgs
-  geometry_msgs
-  controller_manager_msgs
-  controller_manager
-  ignition-plugin1
-  ignition-cmake2
-  gz_ros2_control
-  ros2_control
-  # kdl_parser
-  # orocos_kdl
-  # urdf
-  tinyxml2_vendor
-  TinyXML2
-  # ignition-math6
-  ignition-gazebo6
-  # aerial_robot_model
-  )
-target_link_libraries(aerial_robot_ign_plugin
-  aerial_robot_hw_sim
-  )
-
-target_include_directories(aerial_robot_ign_plugin PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  )
-
-
 add_library(simulation_attitude_controller SHARED
   src/simulation_attitude_controller.cpp)
 ament_target_dependencies(simulation_attitude_controller
-  ros_gz_sim
   rclcpp
   rclcpp_lifecycle
   hardware_interface
@@ -173,7 +131,7 @@ pluginlib_export_plugin_description_file(
 
 
 install(
-  TARGETS rotor_handle_lib spinal_interface aerial_robot_hw_sim aerial_robot_ign_plugin simulation_attitude_controller sim_param_server
+  TARGETS rotor_handle_lib spinal_interface aerial_robot_hw_sim simulation_attitude_controller sim_param_server
   EXPORT export_${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib

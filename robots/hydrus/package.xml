@@ -17,6 +17,11 @@
   <exec_depend>robot_state_publisher</exec_depend>
   <exec_depend>joint_state_publisher_gui</exec_depend>
   <exec_depend>rviz2</exec_depend>
+  
+  <depend>aerial_robot_model</depend>
+  <depend>aerial_robot_msgs</depend>
+  <depend>aerial_robot_simulation</depend>
+  <depend>aerial_robot_core</depend>
 
   <export>
     <build_type>ament_cmake</build_type>

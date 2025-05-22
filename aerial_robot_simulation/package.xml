@@ -16,8 +16,6 @@
   <depend>nav_msgs</depend>
   <depend>aerial_robot_msgs</depend>
   <depend>spinal</depend>
-  <!-- <depend>gazebo_ros2_control</depend> -->
-  <!-- <depend>controller_interface</depend> -->
   <depend>controller_manager_msgs</depend>
   <depend>controller_manager</depend>
   <depend>hardware_interface</depend>
@@ -32,12 +30,6 @@
   <depend>ros2_control</depend>
   <depend>ros2_controllers</depend>
   <depend>controller_interface</depend>
-
-  <!-- <export> -->
-  <!--   <gazebo_ros_control plugin="${prefix}/aerial_robot_hw_sim_plugins.xml"/> -->
-  <!--   <controller_interface plugin="${prefix}/flight_controllers_plugins.xml"/> -->
-  <!--   <mujoco_ros_control plugin="${prefix}/mujoco_robot_hw_sim_plugin.xml"/> -->
-  <!-- </export> -->
 
   <export>
     <build_type>ament_cmake</build_type>
