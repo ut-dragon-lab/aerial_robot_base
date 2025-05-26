@@ -46,10 +46,10 @@ using namespace std::chrono_literals;
 
 ServoBridge::ServoBridge(rclcpp::Node::SharedPtr node) : node_(node) {
   // 1) Simulation / mujoco flags
-  node_->get_parameter_or("use_sim_time", simulation_mode_, false);
+  node_->get_parameter_or("sim", simulation_mode_, false);
   node_->get_parameter_or("use_mujoco", use_mujoco_, false);
   if (use_mujoco_) {
-    RCLCPP_WARN(node_->get_logger(), "use mujoco simulator; disabling ROS time");
+    RCLCPP_WARN(node_->get_logger(), "use mujoco simulator");
     simulation_mode_ = false;
   }
   if (simulation_mode_) {
@@ -96,20 +96,22 @@ ServoBridge::ServoBridge(rclcpp::Node::SharedPtr node) : node_(node) {
     std::string enable_pub_topic;
     node_->get_parameter_or(base + "servo_enable_pub_topic", enable_pub_topic,
                             std::string(group == "common" ? "servo/torque_enable" : ""));
-    int angle_sgn;
-    node_->get_parameter_or(base + "angle_sgn", angle_sgn, 1);
-    int zero_offset;
-    node_->get_parameter_or(base + "zero_point_offset", zero_offset, 0);
-    double angle_scale;
-    node_->get_parameter_or(base + "angle_scale", angle_scale, 1.0);
-    double torque_scale;
-    node_->get_parameter_or(base + "torque_scale", torque_scale, 1.0);
-    bool filter_flag;
-    node_->get_parameter_or(base + "filter_flag", filter_flag, false);
-    double sample_freq;
-    node_->get_parameter_or(base + "sample_freq", sample_freq, 0.0);
-    double cutoff_freq;
-    node_->get_parameter_or(base + "cutoff_freq", cutoff_freq, 0.0);
+    int angle_sgn_cmn;
+    node_->get_parameter_or(base + "angle_sgn", angle_sgn_cmn, 1);
+    int zero_offset_cmn;
+    node_->get_parameter_or(base + "zero_point_offset", zero_offset_cmn, 0);
+    double angle_scale_cmn;
+    node_->get_parameter_or(base + "angle_scale", angle_scale_cmn, 1.0);
+    double torque_scale_cmn;
+    node_->get_parameter_or(base + "torque_scale", torque_scale_cmn, 1.0);
+    bool filter_flag_cmn;
+    node_->get_parameter_or(base + "filter_flag", filter_flag_cmn, false);
+    double sample_freq_cmn;
+    node_->get_parameter_or(base + "sample_freq", sample_freq_cmn, 0.0);
+    double cutoff_freq_cmn;
+    node_->get_parameter_or(base + "cutoff_freq", cutoff_freq_cmn, 0.0);
+    double init_value_cmn;
+    node_->get_parameter_or(base + "init_value", init_value_cmn, 0.0);
 
     //--- common‐group interfaces ---
     if (!state_sub_topic.empty()) {
@@ -137,49 +139,86 @@ ServoBridge::ServoBridge(rclcpp::Node::SharedPtr node) : node_(node) {
         });
 
     //--- per‐servo controllers in this group ---
-    std::vector<std::string> controllers;
-    node_->get_parameter_or(base + "controllers", controllers, std::vector<std::string>{});
+    auto joints = node_->get_parameter_or<std::vector<std::string>>("servo_controller." + group + ".names",
+                                                                    std::vector<std::string>{});
 
-    ServoGroupHandler handler;
-    for (const auto& ctrl : controllers) {
-      const std::string cbase = base + "controllers." + ctrl + ".";
-      std::string name;
+    ServoGroupHandler group_handler;
+    for (const auto& joint : joints) {
+      const std::string jbase = base + joint + ".";
       int id, a_sgn, z_off;
-      double a_scale, t_scale, s_freq, c_freq;
+      double a_scale, t_scale, s_freq, c_freq, init_value;
       bool f_flag;
-      node_->get_parameter_or(cbase + "name", name, std::string(""));
-      node_->get_parameter_or(cbase + "id", id), 0;
-      node_->get_parameter_or(cbase + "angle_sgn", a_sgn, 1);
-      node_->get_parameter_or(cbase + "zero_point_offset", z_off, 0);
-      node_->get_parameter_or(cbase + "angle_scale", a_scale, 1.0);
-      node_->get_parameter_or(cbase + "torque_scale", t_scale, 1.0);
-      node_->get_parameter_or(cbase + "filter_flag", f_flag, false);
-      node_->get_parameter_or(cbase + "sample_freq", s_freq, 0.0);
-      node_->get_parameter_or(cbase + "cutoff_freq", c_freq, 0.0);
+      node_->get_parameter_or(jbase + "id", id, 0);
+      node_->get_parameter_or(jbase + "angle_sgn", a_sgn, angle_sgn_cmn);
+      node_->get_parameter_or(jbase + "zero_point_offset", z_off, zero_offset_cmn);
+      node_->get_parameter_or(jbase + "angle_scale", a_scale, angle_scale_cmn);
+      node_->get_parameter_or(jbase + "torque_scale", t_scale, torque_scale_cmn);
+      node_->get_parameter_or(jbase + "filter_flag", f_flag, filter_flag_cmn);
+      node_->get_parameter_or(jbase + "sample_freq", s_freq, sample_freq_cmn);
+      node_->get_parameter_or(jbase + "cutoff_freq", c_freq, cutoff_freq_cmn);
+      node_->get_parameter_or(jbase + "init_value", init_value, init_value_cmn);
 
       // get joint info from URDF
-      auto j = urdf_model.getJoint(name);
+      auto j = urdf_model.getJoint(joint);
       if (!j) {
         RCLCPP_ERROR(node_->get_logger(), "ServoBridge: Joint '%s' not found in URDF, skipping controller setup",
-                     name.c_str());
+                     joint.c_str());
         continue;
       }
       if (!j->limits) {
         RCLCPP_ERROR(node_->get_logger(), "ServoBridge: Joint '%s' has no <limit> element in URDF, skipping",
-                     name.c_str());
+                     joint.c_str());
         continue;
       }
       double upper = j->limits->upper;
       double lower = j->limits->lower;
 
-      handler.push_back(std::make_shared<SingleServoHandle>(name, id, a_sgn, z_off, a_scale, upper, lower, t_scale,
-                                                            !no_real_state_flags_.at(group), f_flag, s_freq, c_freq));
+      auto single_hander = std::make_shared<SingleServoHandle>(joint, id, a_sgn, z_off, a_scale, upper, lower, t_scale,
+                                                               !no_real_state_flags_.at(group), f_flag, s_freq, c_freq);
 
+      // register initial target position for each joint (only for simulation)
       if (simulation_mode_) {
-        // TODO
+        single_hander->setTargetAngleVal(init_value, ValueType::RADIAN);
       }
+
+      group_handler.push_back(single_hander);
     }
-    servos_handler_[group] = std::move(handler);
+    servos_handler_[group] = std::move(group_handler);
+
+    servo_ctrl_subs_.insert(
+        std::make_pair(group, node_->create_subscription<sensor_msgs::msg::JointState>(
+                                  group + "_ctrl", rclcpp::SystemDefaultsQoS(),
+                                  [this, group](const sensor_msgs::msg::JointState::ConstSharedPtr msg) {
+                                    this->servoCtrlCallback(msg, group);
+                                  })));
+    if (simulation_mode_ && group != "common") {
+      uint64_t depth = rcl_interfaces::srv::ListParameters::Request::DEPTH_RECURSIVE;
+      auto result = node_->list_parameters({"servo_controller." + group + ".simulation"}, depth);
+      if (result.names.empty()) {
+        RCLCPP_ERROR(node_->get_logger(),
+                     "please set gazebo servo parameters for %s, using sub namespace 'simulation:'", group.c_str());
+        return;
+      }
+      std::string controller_type;
+      node_->get_parameter_or("servo_controller." + group + ".simulation.type", controller_type, std::string(""));
+      servo_target_pos_sim_pubs_.insert(
+          std::make_pair(group, node_->create_publisher<std_msgs::msg::Float64MultiArray>(
+                                    controller_type + "/commands", rclcpp::SystemDefaultsQoS())));
+
+      // send initial position
+      auto pos_sim_msg = std_msgs::msg::Float64MultiArray();
+      for (const auto& it : servos_handler_[group]) {
+        pos_sim_msg.data.push_back(it->getTargetAngleVal(ValueType::RADIAN));
+      }
+      auto pub = servo_target_pos_sim_pubs_[group];
+
+      // wait until subscribers are ready
+      while (rclcpp::ok() && pub->get_subscription_count() == 0) {
+        RCLCPP_INFO(node_->get_logger(), "Waiting for joints control subscribers...");
+        rclcpp::Rate(10).sleep();
+      }
+      pub->publish(pos_sim_msg);
+    }
   }
 
   // 5) joint_states publisher
@@ -264,7 +303,9 @@ void ServoBridge::servoCtrlCallback(const sensor_msgs::msg::JointState::ConstSha
   if (!names.empty()) {
     // named
     if (pos.size() != names.size()) {
-      RCLCPP_ERROR(node_->get_logger(), "[servo bridge, ctrl cb]: name/position size mismatch (%zu vs %zu)",
+      RCLCPP_ERROR(node_->get_logger(),
+                   "[servo bridge, servo control control]: the servo position num and name num are different in ros "
+                   "msgs [%zu vs %zu]",
                    names.size(), pos.size());
       return;
     }
@@ -277,7 +318,8 @@ void ServoBridge::servoCtrlCallback(const sensor_msgs::msg::JointState::ConstSha
       auto it_hdl = std::find_if(handlers.begin(), handlers.end(),
                                  [&](const SingleServoHandlePtr& h) { return names[i] == h->getName(); });
       if (it_hdl == handlers.end()) {
-        RCLCPP_ERROR(node_->get_logger(), "[servo bridge, ctrl cb]: no handler for %s", names[i].c_str());
+        RCLCPP_ERROR(node_->get_logger(), "[servo bridge, servo control callback]: no matching servo handler for %s",
+                     names[i].c_str());
         return;
       }
 
@@ -290,13 +332,15 @@ void ServoBridge::servoCtrlCallback(const sensor_msgs::msg::JointState::ConstSha
         target_torque_msg.index.push_back((*it_hdl)->getId());
         target_torque_msg.angles.push_back((*it_hdl)->getTargetTorqueVal(ValueType::BIT));
       }
+    }
 
-      if (simulation_mode_) {
-        auto pub = servo_target_pos_sim_pubs_[servo_group_name][std::distance(handlers.begin(), it_hdl)];
-        auto m = std_msgs::msg::Float64();
-        m.data = pos[i];
-        pub->publish(m);
+    if (simulation_mode_) {
+      auto pos_sim_msg = std_msgs::msg::Float64MultiArray();
+      for (const auto& it : servos_handler_[servo_group_name]) {
+        pos_sim_msg.data.push_back(it->getTargetAngleVal(ValueType::RADIAN));
       }
+      auto pub = servo_target_pos_sim_pubs_[servo_group_name];
+      pub->publish(pos_sim_msg);
     }
   } else {
     // unnamed: pre-defined order
@@ -318,10 +362,12 @@ void ServoBridge::servoCtrlCallback(const sensor_msgs::msg::JointState::ConstSha
       mujoco_msg.name.push_back(h->getName());
       mujoco_msg.position.push_back(pos[i]);
       if (simulation_mode_) {
-        auto pub = servo_target_pos_sim_pubs_[servo_group_name][i];
-        auto m = std_msgs::msg::Float64();
-        m.data = pos[i];
-        pub->publish(m);
+        auto pos_sim_msg = std_msgs::msg::Float64MultiArray();
+        for (const auto& it : servos_handler_[servo_group_name]) {
+          pos_sim_msg.data.push_back(it->getTargetAngleVal(ValueType::RADIAN));
+        }
+        auto pub = servo_target_pos_sim_pubs_[servo_group_name];
+        pub->publish(pos_sim_msg);
       }
     }
   }
