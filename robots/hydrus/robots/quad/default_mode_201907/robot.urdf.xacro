@@ -116,7 +116,6 @@
     <xacro:joint_actuation self="1"/>
     <xacro:joint_actuation self="2"/>
     <xacro:joint_actuation self="3"/>
-    <xacro:joint_actuation self="4"/>
     <sensor name="spinal_imu">
       <state_interface name="orientation.x"/>
       <state_interface name="orientation.y"/>
