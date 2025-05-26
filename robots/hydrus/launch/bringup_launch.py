@@ -172,7 +172,11 @@ def generate_launch_description():
         executable='servo_bridge_node',
         name='servo_bridge',
         namespace=robot_ns,
-        parameters=[robot_description, servo_param_file],
+        parameters=[robot_description, servo_param_file,
+                    {
+                        'sim': sim,
+                    }
+        ],
     )
 
     model_launch = IncludeLaunchDescription(

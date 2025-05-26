@@ -1,8 +1,5 @@
 /**/servo_bridge:
   ros__parameters:
-    use_sim_time: false
-    use_mujoco:   false
-
     servo_controller:
 
       groups:
@@ -13,17 +10,20 @@
         angle_scale: 0.00076699
         zero_point_offset: 2047
         torque_scale: 0.03483
-
-        controller1:
-          id: 0
-          name: joint1
-          angle_sgn: -1
-        controller2:
-          id: 1
-          name: joint2
-        controller3:
-          id: 2
-          name: joint3
+        init_value: 1.57
+        names:
+          - joint1
+          - joint2
+          - joint3
+        joint1:
+            id: 0
+            angle_sgn: -1
+        joint2:
+            id: 1
+        joint3:
+            id: 2            
+        simulation:
+          type: joint_group_position_controller
 
 # joints setting for simulation
 /**/joint_group_position_controller:
