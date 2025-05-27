@@ -6,7 +6,7 @@
   <xacro:macro name="gazebo_spinal" params="robot_name imu_frame:=fc mag_frame:=magnet gps_frame:=gps">
   <gazebo>
     <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
-      <parameters>$(find aerial_robot_simulation)/config/Gazebo.yaml</parameters>
+      <parameters>$(find ${robot_name})/config/Simulation.yaml</parameters>
       <ros>
         <namespace>${robot_name}</namespace>
       </ros>

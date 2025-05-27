@@ -139,8 +139,6 @@ def generate_launch_description():
     sim_param_file = PathJoinSubstitution([
         FindPackageShare(robot_model_pkg),
         'config',
-        'quad',
-        onboards_model,
         'Simulation.yaml',
     ])    
 
