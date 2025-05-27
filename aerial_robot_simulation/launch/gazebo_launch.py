@@ -21,6 +21,7 @@ def generate_launch_description():
     spawn_y = LaunchConfiguration('spawn_y')
     spawn_z = LaunchConfiguration('spawn_z')
     servo_param_file = LaunchConfiguration('servo_param_file')
+    sim_param_file = LaunchConfiguration('sim_param_file')
 
     # --- DeclareLaunchArgument ---
     world_arg = DeclareLaunchArgument(
@@ -50,16 +51,13 @@ def generate_launch_description():
     )
     servo_param_file_arg = DeclareLaunchArgument(
         'servo_param_file',
+        default_value='',
         description='Path to the servo parameter YAML file'
     )
-
-    # --- Simlation parameter  ---
-    sim_param_file = PathJoinSubstitution(
-        [
-            FindPackageShare('aerial_robot_simulation'),
-            'config',
-            'Gazebo.yaml',
-        ]
+    sim_param_file_arg = DeclareLaunchArgument(
+        'sim_param_file',
+        default_value='',
+        description='Path to the simulation parameter YAML file'
     )
 
     # --- environmental setting ---
@@ -190,6 +188,7 @@ def generate_launch_description():
     ld.add_action(spawn_y_arg)
     ld.add_action(spawn_z_arg)
     ld.add_action(servo_param_file_arg)
+    ld.add_action(sim_param_file_arg)
     ld.add_action(set_fastrtps_profile)
     ld.add_action(set_env)
     ld.add_action(set_ign_resource_path)

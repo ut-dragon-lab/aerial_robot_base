@@ -133,6 +133,15 @@ def generate_launch_description():
         'quad',
         onboards_model,
         'Servo.yaml',
+    ])
+
+    # --- simulation parameter  ---
+    sim_param_file = PathJoinSubstitution([
+        FindPackageShare(robot_model_pkg),
+        'config',
+        'quad',
+        onboards_model,
+        'Simulation.yaml',
     ])    
 
     # --- robot model parameter  TODO: get from yaml file---
@@ -212,6 +221,7 @@ def generate_launch_description():
             'spawn_y': LaunchConfiguration('spawn_y'),
             'spawn_z': LaunchConfiguration('spawn_z'),
             'servo_param_file':   servo_param_file,
+            'sim_param_file':   sim_param_file,
         }.items(),
         condition=IfCondition(sim),
     )
