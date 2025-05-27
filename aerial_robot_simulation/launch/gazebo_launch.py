@@ -149,38 +149,6 @@ def generate_launch_description():
         output='screen',
     )
 
-    joint_state_broadcaster_spawner = Node(
-        namespace= robot_name,
-        package='controller_manager',
-        executable='spawner',
-        arguments=['joint_state_broadcaster'],
-    )
-
-    joint_position_spawner = Node(
-        namespace= robot_name,
-        package='controller_manager',
-        executable='spawner',
-        name='spawn_joint_group_position_controller',
-        output='screen',
-        arguments=[
-            'joint_group_position_controller',
-            '--param-file', sim_param_file,
-            '--param-file', servo_param_file,
-        ]
-    )
-
-    att_controller_spawner = Node(
-        namespace= robot_name,
-        package='controller_manager',
-        executable='spawner',
-        name='spawn_att_controller',
-        output='screen',
-        arguments=[
-            'attitude_controller',
-            '--param-file', sim_param_file
-        ]
-    )
-
     ld = LaunchDescription()
     ld.add_action(world_arg)
     ld.add_action(robot_name_arg)
@@ -198,9 +166,5 @@ def generate_launch_description():
     ld.add_action(shutdown_handler)
     ld.add_action(ign_client)
     ld.add_action(clock_bridge)
-    ld.add_action(spawn_robot)
-    ld.add_action(joint_state_broadcaster_spawner)
-    ld.add_action(joint_position_spawner)
-    ld.add_action(att_controller_spawner)    
-
+    ld.add_action(spawn_robot)    
     return ld

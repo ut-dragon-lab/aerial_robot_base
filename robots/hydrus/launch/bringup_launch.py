@@ -226,6 +226,41 @@ def generate_launch_description():
         condition=IfCondition(sim),
     )
 
+    joint_state_broadcaster_spawner = Node(
+        namespace= robot_ns,
+        package='controller_manager',
+        executable='spawner',
+        arguments=['joint_state_broadcaster'],
+        condition=IfCondition(sim),
+    )
+
+    joint_position_spawner = Node(
+        namespace= robot_ns,
+        package='controller_manager',
+        executable='spawner',
+        name='spawn_joint_group_position_controller',
+        output='screen',
+        arguments=[
+            'joint_group_position_controller',
+            '--param-file', sim_param_file,
+            '--param-file', servo_param_file,
+        ],
+        condition=IfCondition(sim),
+    )
+
+    att_controller_spawner = Node(
+        namespace= robot_ns,
+        package='controller_manager',
+        executable='spawner',
+        name='spawn_att_controller',
+        output='screen',
+        arguments=[
+            'attitude_controller',
+            '--param-file', sim_param_file
+        ],
+        condition=IfCondition(sim),
+    )
+
     ld = LaunchDescription()
     ld.add_action(headless_arg)
     ld.add_action(model_options_arg)
@@ -242,4 +277,7 @@ def generate_launch_description():
     ld.add_action(servo_bridge_node)
     ld.add_action(model_launch)
     ld.add_action(sim_launch)
+    ld.add_action(joint_state_broadcaster_spawner)
+    ld.add_action(joint_position_spawner)
+    ld.add_action(att_controller_spawner)
     return ld
