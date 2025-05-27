@@ -1,0 +1,5 @@
+# joints setting for simulation
+/**/joint_group_position_controller:
+  ros__parameters:
+    joints:
+      - dummy_joint
