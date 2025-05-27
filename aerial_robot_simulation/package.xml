@@ -30,6 +30,7 @@
   <depend>ros2_control</depend>
   <depend>ros2_controllers</depend>
   <depend>controller_interface</depend>
+  <depend>ros_gz_bridge</depend>
 
   <export>
     <build_type>ament_cmake</build_type>
