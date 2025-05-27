@@ -20,7 +20,6 @@ def generate_launch_description():
     spawn_x = LaunchConfiguration('spawn_x')
     spawn_y = LaunchConfiguration('spawn_y')
     spawn_z = LaunchConfiguration('spawn_z')
-    servo_param_file = LaunchConfiguration('servo_param_file')
     sim_param_file = LaunchConfiguration('sim_param_file')
 
     # --- DeclareLaunchArgument ---
@@ -48,11 +47,6 @@ def generate_launch_description():
         'spawn_z',
         default_value='0.5',
         description='Initial Z position'
-    )
-    servo_param_file_arg = DeclareLaunchArgument(
-        'servo_param_file',
-        default_value='',
-        description='Path to the servo parameter YAML file'
     )
     sim_param_file_arg = DeclareLaunchArgument(
         'sim_param_file',
@@ -155,7 +149,6 @@ def generate_launch_description():
     ld.add_action(spawn_x_arg)
     ld.add_action(spawn_y_arg)
     ld.add_action(spawn_z_arg)
-    ld.add_action(servo_param_file_arg)
     ld.add_action(sim_param_file_arg)
     ld.add_action(set_fastrtps_profile)
     ld.add_action(set_env)
@@ -166,5 +159,5 @@ def generate_launch_description():
     ld.add_action(shutdown_handler)
     ld.add_action(ign_client)
     ld.add_action(clock_bridge)
-    ld.add_action(spawn_robot)    
+    ld.add_action(spawn_robot)   
     return ld
