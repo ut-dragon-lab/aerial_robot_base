@@ -3,3 +3,4 @@ BasedOnStyle: Google   # Google style base
 IndentWidth: 2         # Indent each block by 2 spaces
 ColumnLimit: 120       # Maximum line length is 120 characters.
 UseTab: Never          # Never insert literal tab characters
+SortIncludes: false #Never change the order of include
