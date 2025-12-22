@@ -9,3 +9,9 @@ repositories:
     url: "https://github.com/ros/executive_smach.git"
     version: "ros2"
     local-name: "smach"
+
+  kalman_filter:
+    type: git
+    url: "https://github.com/sugihara-16/kalman_filter.git"
+    version: "PR/ROS2"
+    local-name: "kalman_filter"
