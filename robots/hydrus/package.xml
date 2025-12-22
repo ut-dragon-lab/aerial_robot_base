@@ -12,11 +12,14 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <exec_depend>xacro</exec_depend>
-
-  <exec_depend>robot_state_publisher</exec_depend>
-  <exec_depend>joint_state_publisher_gui</exec_depend>
-  <exec_depend>rviz2</exec_depend>
+  <depend>xacro</depend>
+  <depend>robot_state_publisher</depend>
+  <depend>joint_state_publisher_gui</depend>
+  <depend>rviz2</depend>  
+  <depend>aerial_robot_model</depend>
+  <depend>aerial_robot_msgs</depend>
+  <depend>aerial_robot_simulation</depend>
+  <depend>aerial_robot_core</depend>
 
   <export>
     <build_type>ament_cmake</build_type>

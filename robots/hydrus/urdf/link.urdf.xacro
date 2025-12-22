@@ -340,37 +340,21 @@
       </joint>
     </xacro:if>
 
-    <!-- hardware interface -->
-    <xacro:unless value="${self == links}">
-      <transmission name="joint_tran${self}">
-        <type>transmission_interface/SimpleTransmission</type>
-        <joint name="joint${self}">
-          <!-- TODO: effort is torque, maybe position is enough -->
-          <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
-        </joint>
-        <actuator name="servo{self}">
-          <!-- TODO: effort is torque, maybe position is enough -->
-          <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
-          <mechanicalReduction>1</mechanicalReduction>
-        </actuator>
-      </transmission>
-    </xacro:unless>
+  </xacro:macro>
 
-    <transmission name="rotor_tran${self}">
-      <type>transmission_interface/SimpleTransmission</type>
-      <joint name="rotor${self}">
-        <!-- TODO: effort is torque, maybe position is enough -->
-        <hardwareInterface>RotorInterface</hardwareInterface>
-      </joint>
-      <actuator name="rotor${self}">
-        <!-- TODO: effort is torque, maybe position is enough -->
-        <hardwareInterface>RotorInterface</hardwareInterface>
-        <mechanicalReduction>1</mechanicalReduction>
-      </actuator>
-    </transmission>
-
-    <xacro:friction self ="${self}"/>
-
+  <!-- ros2_control hardware interface -->
+  <xacro:macro name="joint_actuation" params="self max_pos:=${pi/2} min_pos:=${-pi/2} init_pos:=${0.0}">
+    <joint name="joint${self}">
+      <command_interface name="position">
+        <param name="min">${max_pos}</param>
+        <param name="max">${min_pos}</param>
+      </command_interface>
+      <state_interface name="position">
+        <param name="initial_value">${init_pos}</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+      <state_interface name="effort"/>
+    </joint>
   </xacro:macro>
 
 </robot>

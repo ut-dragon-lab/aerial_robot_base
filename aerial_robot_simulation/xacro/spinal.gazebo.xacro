@@ -1,0 +1,136 @@
+<?xml version="1.0"?>
+
+<robot
+    xmlns:xacro="http://www.ros.org/wiki/xacro" name="spinal" >
+
+  <xacro:macro name="gazebo_spinal" params="robot_name imu_frame:=fc mag_frame:=magnet gps_frame:=gps">
+  <gazebo>
+    <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+      <parameters>$(find ${robot_name})/config/Simulation.yaml</parameters>
+      <ros>
+        <namespace>${robot_name}</namespace>
+      </ros>
+    </plugin>
+  </gazebo>
+    <gazebo reference="${imu_frame}">
+      <sensor name="spinal_imu" type="imu">
+        <imu>
+          <angular_velocity>
+            <x>
+              <noise type="gaussian">
+                <mean>0.0</mean>
+                <stddev>2e-4</stddev>
+                <bias_mean>0.0000075</bias_mean>
+                <bias_stddev>0.0000008</bias_stddev>
+              </noise>
+            </x>
+            <y>
+              <noise type="gaussian">
+                <mean>0.0</mean>
+                <stddev>2e-4</stddev>
+                <bias_mean>0.0000075</bias_mean>
+                <bias_stddev>0.0000008</bias_stddev>
+              </noise>
+            </y>
+            <z>
+              <noise type="gaussian">
+                <mean>0.0</mean>
+                <stddev>2e-4</stddev>
+                <bias_mean>0.0000075</bias_mean>
+                <bias_stddev>0.0000008</bias_stddev>
+              </noise>
+            </z>
+          </angular_velocity>
+          <linear_acceleration>
+            <x>
+              <noise type="gaussian">
+                <mean>0.0</mean>
+                <stddev>1.7e-2</stddev>
+                <bias_mean>0.1</bias_mean>
+                <bias_stddev>0.001</bias_stddev>
+              </noise>
+            </x>
+            <y>
+              <noise type="gaussian">
+                <mean>0.0</mean>
+                <stddev>1.7e-2</stddev>
+                <bias_mean>0.1</bias_mean>
+                <bias_stddev>0.001</bias_stddev>
+              </noise>
+            </y>
+            <z>
+              <noise type="gaussian">
+                <mean>0.0</mean>
+                <stddev>1.7e-2</stddev>
+                <bias_mean>0.1</bias_mean>
+                <bias_stddev>0.001</bias_stddev>
+              </noise>
+            </z>
+          </linear_acceleration>
+        </imu>
+        <always_on>1</always_on>
+        <update_rate>1000.0</update_rate>
+        <plugin
+            filename="libignition-gazebo-imu-system.so"
+            name="ignition::gazebo::systems::Imu">
+          <!-- topic and frame are inferred from <sensor> element -->
+        </plugin>
+      </sensor>
+    </gazebo>
+
+    <!-- magnetometer plugin -->
+    <gazebo reference="${mag_frame}">
+      <sensor name="spinal_mag" type="magnetometer">
+        <magnetometer>
+          <x>
+            <noise type="gaussian">
+              <mean>0.0</mean>
+              <stddev>1.7e-2</stddev>
+              <bias_mean>0.05</bias_mean>
+              <bias_stddev>0.01</bias_stddev>
+            </noise>
+          </x>
+          <y>
+            <noise type="gaussian">
+              <mean>0.0</mean>
+              <stddev>1.7e-2</stddev>
+              <bias_mean>0.05</bias_mean>
+              <bias_stddev>0.01</bias_stddev>
+            </noise>
+          </y>
+          <z>
+            <noise type="gaussian">
+              <mean>0.0</mean>
+              <stddev>1.7e-2</stddev>
+              <bias_mean>0.5</bias_mean>
+              <bias_stddev>0.01</bias_stddev>
+            </noise>
+          </z>
+        </magnetometer>
+        <always_on>1</always_on>
+        <update_rate>1000.0</update_rate>
+        <plugin
+            filename="libignition-gazebo-magnetometer-system.so"
+            name="ignition::gazebo::systems::Magnetometer"/>
+      </sensor>
+    </gazebo>
+
+    <!-- gps plugin -->
+    <gazebo reference="${gps_frame}">
+      <sensor name="spinal_gps" type="navsat">
+        <always_on>1</always_on>
+        <update_rate>5.0</update_rate>
+
+        <!-- Ignition-Gazebo NavSat system plugin -->
+        <plugin
+            filename="ignition-gazebo-navsat-system"
+            name="ignition::gazebo::systems::NavSat">
+          <topic>sim/gps/fix</topic>
+          <velocity_topic>sim/gps/velocity</velocity_topic>
+          <frameName>${gps_frame}</frameName>
+        </plugin>
+      </sensor>
+    </gazebo>
+
+  </xacro:macro>
+</robot>

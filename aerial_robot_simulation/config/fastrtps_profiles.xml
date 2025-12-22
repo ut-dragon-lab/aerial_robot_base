@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<profiles xmlns="http://www.eprosima.com/XMLSchemas/fastRTPS_Profiles">
+  <participant profile_name="participant_profile_ros2" is_default_profile="true">
+    <rtps>
+      <builtin>
+        <discovery_config>
+          <leaseDuration>
+            <sec>1</sec>
+            <nanosec>0</nanosec>
+          </leaseDuration>
+          <leaseAnnouncement>
+            <sec>0</sec>
+            <nanosec>250000000</nanosec>
+          </leaseAnnouncement>
+        </discovery_config>
+      </builtin>
+    </rtps>
+  </participant>
+</profiles>

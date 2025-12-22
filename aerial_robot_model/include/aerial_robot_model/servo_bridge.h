@@ -52,6 +52,7 @@
 #include <spinal/msg/servo_torque_cmd.hpp>
 #include <spinal/msg/uav_info.hpp>
 #include <std_msgs/msg/float64.hpp>
+#include <std_msgs/msg/float64_multi_array.hpp>
 #include <std_srvs/srv/set_bool.hpp>
 #include <string>
 #include <vector>
@@ -123,7 +124,6 @@ class SingleServoHandle {
 
   inline void setTargetTorqueVal(const double& val) { target_torque_val_ = val; }
 
-  /// 現在角度を BIT (生値) または RADIAN で返す
   inline double getCurrAngleVal(int value_type) const {
     if (value_type == ValueType::BIT) {
       return std::clamp((curr_angle_val_ * angle_sgn_ / angle_scale_) + zero_point_offset_,
@@ -132,7 +132,6 @@ class SingleServoHandle {
     return curr_angle_val_;
   }
 
-  /// 目標角度を BIT (生値) または RADIAN で返す
   inline double getTargetAngleVal(int value_type) const {
     if (value_type == ValueType::BIT) {
       return std::clamp((target_angle_val_ * angle_sgn_ / angle_scale_) + zero_point_offset_,
@@ -141,10 +140,8 @@ class SingleServoHandle {
     return target_angle_val_;
   }
 
-  /// 現在トルク（Nm）
   inline double getCurrTorqueVal() const { return curr_torque_val_; }
 
-  /// 目標トルクを BIT (生値) または Nm で返す
   inline double getTargetTorqueVal(int value_type) const {
     if (value_type == ValueType::BIT) {
       return (target_torque_val_ * angle_sgn_ / torque_scale_);
@@ -152,7 +149,6 @@ class SingleServoHandle {
     return target_torque_val_;
   }
 
-  // getters (match ROS1版)
   inline const std::string& getName() const { return name_; }
   inline const int& getId() const { return id_; }
   inline const int& getAngleSgn() const { return angle_sgn_; }
@@ -216,7 +212,7 @@ class ServoBridge {
   std::map<std::string, rclcpp::Publisher<spinal::msg::ServoTorqueCmd>::SharedPtr> servo_enable_pubs_;
 
   // simulation-only: individual float64 command pubs
-  std::map<std::string, std::vector<rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr>> servo_target_pos_sim_pubs_;
+  std::map<std::string, rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr> servo_target_pos_sim_pubs_;
 
   // servo handlers & flags
   std::map<std::string, ServoGroupHandler> servos_handler_;
