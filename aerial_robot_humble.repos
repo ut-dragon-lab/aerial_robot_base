@@ -15,3 +15,9 @@ repositories:
     url: "https://github.com/sugihara-16/kalman_filter.git"
     version: "PR/ROS2"
     local-name: "kalman_filter"
+
+  aerial_robot_nerve:
+    type: git
+    url: "https://github.com/sugihara-16/aerial_robot_nerve.git"
+    version: "master"
+    local-name: "aerial_robot_nerve"
