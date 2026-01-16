@@ -90,7 +90,7 @@ controller_interface::CallbackReturn SimulationAttitudeController::on_configure(
 
 controller_interface::CallbackReturn SimulationAttitudeController::on_activate(const rclcpp_lifecycle::State &) {
   // activate publishers
-  spinal_iface_.getEstimatorPtr()->getAttEstimator()->getImuPub()->on_activate();
+  spinal_iface_.getEstimatorPtr()->getImuPub()->on_activate();
   RCLCPP_INFO(get_node()->get_logger(), "SimulationAttitudeController: on_activate");
   return controller_interface::CallbackReturn::SUCCESS;
 }
@@ -103,6 +103,11 @@ controller_interface::CallbackReturn SimulationAttitudeController::on_deactivate
 controller_interface::return_type SimulationAttitudeController::update(const rclcpp::Time & /*time*/,
                                                                        const rclcpp::Duration & /*period*/
 ) {
+
+  if (get_state().id() != lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE) {
+    return controller_interface::return_type::OK;
+  }
+  
   spinal_iface_.onGround(false);
 
   // angular velocity

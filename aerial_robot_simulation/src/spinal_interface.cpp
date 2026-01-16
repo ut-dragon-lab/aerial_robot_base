@@ -56,12 +56,12 @@ void SpinalInterface::stateEstimate() {
 
 void SpinalInterface::setImuValue(double acc_x, double acc_y, double acc_z, double gyro_x, double gyro_y,
                                   double gyro_z) {
-  spinal_state_estimator_.getAttEstimator()->setAcc(acc_x, acc_y, acc_z);
-  spinal_state_estimator_.getAttEstimator()->setGyro(gyro_x, gyro_y, gyro_z);
+  spinal_state_estimator_.getEstimator()->getAttEstimator()->setAcc(acc_x, acc_y, acc_z);
+  spinal_state_estimator_.getEstimator()->getAttEstimator()->setGyro(gyro_x, gyro_y, gyro_z);
 }
 
 void SpinalInterface::setMagValue(double mag_x, double mag_y, double mag_z) {
-  spinal_state_estimator_.getAttEstimator()->setMag(mag_x, mag_y, mag_z);
+  spinal_state_estimator_.getEstimator()->getAttEstimator()->setMag(mag_x, mag_y, mag_z);
 }
 
 void SpinalInterface::setGroundTruthStates(double q_x, double q_y, double q_z, double q_w, double w_x, double w_y,
@@ -70,10 +70,10 @@ void SpinalInterface::setGroundTruthStates(double q_x, double q_y, double q_z, d
   ap::Matrix3f rot;
   q.rotation_matrix(rot);
   ap::Vector3f ang_vel(w_x, w_y, w_z);
-  spinal_state_estimator_.getAttEstimator()->setGroundTruthStates(rot, ang_vel);
+  spinal_state_estimator_.getEstimator()->getAttEstimator()->setGroundTruthStates(rot, ang_vel);
 }
 
-void SpinalInterface::useGroundTruth(bool flag) { spinal_state_estimator_.getAttEstimator()->useGroundTruth(flag); }
+void SpinalInterface::useGroundTruth(bool flag) { spinal_state_estimator_.getEstimator()->getAttEstimator()->useGroundTruth(flag); }
 
 }  // namespace hardware_interface
 
