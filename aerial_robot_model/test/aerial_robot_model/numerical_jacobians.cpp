@@ -37,7 +37,7 @@ NumericalJacobian::NumericalJacobian(const rclcpp::NodeOptions& options,
       "joint_states", rclcpp::SystemDefaultsQoS(),
       std::bind(&NumericalJacobian::jointStateCallback, this, std::placeholders::_1));
 
-  desire_coordinate_sub_ = this->create_subscription<spinal::msg::DesireCoord>(
+  desire_coordinate_sub_ = this->create_subscription<spinal_msgs::msg::DesireCoord>(
       "desire_coordinate", rclcpp::SystemDefaultsQoS(),
       std::bind(&NumericalJacobian::desireCoordinateCallback, this, std::placeholders::_1));
 }
@@ -51,7 +51,7 @@ void NumericalJacobian::jointStateCallback(const sensor_msgs::msg::JointState::C
   }
 }
 
-void NumericalJacobian::desireCoordinateCallback(const spinal::msg::DesireCoord::ConstSharedPtr msg) {
+void NumericalJacobian::desireCoordinateCallback(const spinal_msgs::msg::DesireCoord::ConstSharedPtr msg) {
   robot_model_->setCogDesireOrientation(msg->roll, msg->pitch, msg->yaw);
 }
 
