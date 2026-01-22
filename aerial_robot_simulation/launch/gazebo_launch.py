@@ -1,5 +1,6 @@
 import os
 from launch import LaunchDescription
+from launch.conditions import IfCondition
 from launch.actions import DeclareLaunchArgument, ExecuteProcess, SetEnvironmentVariable, IncludeLaunchDescription, RegisterEventHandler, Shutdown
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, EnvironmentVariable, TextSubstitution, PythonExpression
 from launch_ros.substitutions import FindPackageShare, FindPackagePrefix
@@ -21,6 +22,7 @@ def generate_launch_description():
     spawn_y = LaunchConfiguration('spawn_y')
     spawn_z = LaunchConfiguration('spawn_z')
     sim_param_file = LaunchConfiguration('sim_param_file')
+    headless = LaunchConfiguration('headless')
 
     # --- DeclareLaunchArgument ---
     world_arg = DeclareLaunchArgument(
@@ -54,6 +56,12 @@ def generate_launch_description():
         description='Path to the simulation parameter YAML file'
     )
 
+    headless_arg = DeclareLaunchArgument(
+        'headless',
+        default_value='False',
+        description='Run without GUI (headless mode)'
+    )
+    
     # --- environmental setting ---
     robot_prefix = FindPackagePrefix(robot_name)
     robot_share_dir = PathJoinSubstitution([robot_prefix, 'share'])
@@ -101,6 +109,8 @@ def generate_launch_description():
             'ign', 'gazebo',
             '-g',
         ],
+        condition=IfCondition(PythonExpression(
+            ['not ', headless])),        
         output='screen',
     )
 
