@@ -17,13 +17,7 @@ cd ~/ros2/aerial_robot_base_ws
 sudo rosdep init
 rosdep update
 # install repository
-vcs import src <<EOF
-repositories:
-  aerial_robot_base:
-    type: git
-    url: 'https://github.com/ut-dragon-lab/aerial_robot_base.git'
-    version: master
-EOF
+vcs import src --input https://raw.githubusercontent.com/ut-dragon-lab/aerial_robot_base/master/aerial_robot_base.repos
 # Install depended repositories
 vcs import src < src/aerial_robot_base/aerial_robot_${ROS_DISTRO}.repos
 rosdep install -y -r --from-paths src --ignore-src --rosdistro ${ROS_DISTRO}
