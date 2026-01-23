@@ -146,7 +146,6 @@ install(
 install(
   DIRECTORY launch xacro config gazebo_model
   DESTINATION share/${PROJECT_NAME}
-  USE_SOURCE_PERMISSIONS
   )
 
 install(
