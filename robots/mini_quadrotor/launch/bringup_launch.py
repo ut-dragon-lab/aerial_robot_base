@@ -36,7 +36,7 @@ def generate_launch_description():
     # --- DeclareLaunchArgument ---
     headless_arg = DeclareLaunchArgument(
         'headless',
-        default_value='false',
+        default_value='False',
         description='Run without GUI (headless mode)'
     )
 
@@ -189,6 +189,7 @@ def generate_launch_description():
             'spawn_y': LaunchConfiguration('spawn_y'),
             'spawn_z': LaunchConfiguration('spawn_z'),
             'sim_param_file':   sim_param_file,
+            'headless': LaunchConfiguration('headless'),
         }.items(),
         condition=IfCondition(sim),
     )
