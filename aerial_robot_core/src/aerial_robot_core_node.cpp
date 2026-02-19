@@ -45,7 +45,11 @@ int main(int argc, char* argv[]) {
   auto core_node = std::make_shared<rclcpp::Node>("aerial_robot_core", options);
 
   auto core = std::make_shared<AerialRobotCore>(core_node);
-  rclcpp::spin(core_node);
+
+  // 4 threads
+  rclcpp::executors::MultiThreadedExecutor exec(rclcpp::ExecutorOptions(), 4);
+  exec.add_node(core_node);
+  exec.spin();
   rclcpp::shutdown();
   return 0;
 }
