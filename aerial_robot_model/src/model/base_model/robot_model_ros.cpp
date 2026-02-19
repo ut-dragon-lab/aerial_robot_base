@@ -45,6 +45,7 @@ RobotModelRos::RobotModelRos(rclcpp::Node::SharedPtr node)
 
   // 2) Load the robot‐model plugin
   std::string plugin_name;
+  node_->declare_parameter<std::string>("robot_model_plugin_name", "");
   if (node_->get_parameter("robot_model_plugin_name", plugin_name)) {
     try {
       robot_model_ = robot_model_loader_.createSharedInstance(plugin_name);

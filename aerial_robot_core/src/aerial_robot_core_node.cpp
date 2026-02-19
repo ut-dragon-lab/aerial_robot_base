@@ -41,7 +41,6 @@ int main(int argc, char* argv[]) {
 
   rclcpp::NodeOptions options;
   options.allow_undeclared_parameters(true);
-  options.automatically_declare_parameters_from_overrides(true);
   auto core_node = std::make_shared<rclcpp::Node>("aerial_robot_core", options);
 
   auto core = std::make_shared<AerialRobotCore>(core_node);
