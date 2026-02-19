@@ -2,7 +2,7 @@
 ### Ubuntu 22.04
 #### Install ROS2 Humble from official site
 - https://docs.ros.org/en/humble/Installation.html
-#### Build
+#### Build ROS system
 ```bash
 source /opt/ros/${ROS_DISTRO}/setup.bash
 sudo apt update
@@ -26,3 +26,5 @@ colcon build --symlink-install
 cd ~/ros2/aerial_robot_base_ws/src/aerial_robot_base
 pre-commit install
 ```
+#### Build firmware
+Please refer [here](https://github.com/ut-dragon-lab/aerial_robot_nerve#) for the build procedure.

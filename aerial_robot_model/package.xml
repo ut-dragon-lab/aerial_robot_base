@@ -21,6 +21,7 @@
   <depend>kalman_filter</depend>
   <depend>kdl_parser</depend>
   <depend>spinal</depend>
+  <depend>spinal_msgs</depend>
   <depend>std_msgs</depend>
   <depend>tf2_ros</depend>
   <depend>tf2_eigen</depend>

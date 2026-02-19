@@ -43,7 +43,7 @@
 #include <urdf/model.h>
 
 #include <memory>
-#include <spinal/msg/desire_coord.hpp>
+#include <spinal_msgs/msg/desire_coord.hpp>
 #include <std_msgs/msg/float64.hpp>
 #include <string>
 
@@ -51,6 +51,7 @@
 #include "hardware_interface/handle.hpp"
 #include "pluginlib/class_list_macros.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include <lifecycle_msgs/msg/state.hpp>
 
 namespace flight_controllers {
 

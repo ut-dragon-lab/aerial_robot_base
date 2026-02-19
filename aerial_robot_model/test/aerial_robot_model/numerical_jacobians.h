@@ -39,7 +39,7 @@
 #include <memory>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
-#include <spinal/msg/desire_coord.hpp>
+#include <spinal_msgs/msg/desire_coord.hpp>
 #include <vector>
 
 #include "aerial_robot_model/model/transformable_aerial_robot_model.h"
@@ -66,7 +66,7 @@ class NumericalJacobian : public rclcpp::Node {
 
  protected:
   void jointStateCallback(const sensor_msgs::msg::JointState::ConstSharedPtr msg);
-  void desireCoordinateCallback(const spinal::msg::DesireCoord::ConstSharedPtr msg);
+  void desireCoordinateCallback(const spinal_msgs::msg::DesireCoord::ConstSharedPtr msg);
 
   transformable::RobotModel& getRobotModel() const { return *robot_model_; }
 
@@ -76,7 +76,7 @@ class NumericalJacobian : public rclcpp::Node {
   std::vector<Eigen::MatrixXd> feasibleControlNumericalJacobian(std::vector<int> joint_indices);
 
   rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_state_sub_;
-  rclcpp::Subscription<spinal::msg::DesireCoord>::SharedPtr desire_coordinate_sub_;
+  rclcpp::Subscription<spinal_msgs::msg::DesireCoord>::SharedPtr desire_coordinate_sub_;
 
   std::unique_ptr<transformable::RobotModel> robot_model_;
 

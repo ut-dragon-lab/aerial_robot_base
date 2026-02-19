@@ -46,11 +46,11 @@
 #include <memory>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
-#include <spinal/msg/joint_profiles.hpp>
-#include <spinal/msg/servo_control_cmd.hpp>
-#include <spinal/msg/servo_states.hpp>
-#include <spinal/msg/servo_torque_cmd.hpp>
-#include <spinal/msg/uav_info.hpp>
+#include <spinal_msgs/msg/joint_profiles.hpp>
+#include <spinal_msgs/msg/servo_control_cmd.hpp>
+#include <spinal_msgs/msg/servo_states.hpp>
+#include <spinal_msgs/msg/servo_torque_cmd.hpp>
+#include <spinal_msgs/msg/uav_info.hpp>
 #include <std_msgs/msg/float64.hpp>
 #include <std_msgs/msg/float64_multi_array.hpp>
 #include <std_srvs/srv/set_bool.hpp>
@@ -180,7 +180,7 @@ class ServoBridge {
 
  private:
   // callbacks
-  void servoStatesCallback(spinal::msg::ServoStates::ConstSharedPtr msg, const std::string& servo_group_name);
+  void servoStatesCallback(spinal_msgs::msg::ServoStates::ConstSharedPtr msg, const std::string& servo_group_name);
 
   void servoCtrlCallback(sensor_msgs::msg::JointState::ConstSharedPtr msg, const std::string& servo_group_name);
 
@@ -189,7 +189,7 @@ class ServoBridge {
   void servoEnableCallback(std::shared_ptr<std_srvs::srv::SetBool::Request> req,
                            std::shared_ptr<std_srvs::srv::SetBool::Response> res, const std::string& servo_group_name);
 
-  void uavInfoCallback(spinal::msg::UavInfo::ConstSharedPtr msg);
+  void uavInfoCallback(spinal_msgs::msg::UavInfo::ConstSharedPtr msg);
 
   // node handle
   rclcpp::Node::SharedPtr node_;
@@ -197,19 +197,19 @@ class ServoBridge {
   // publishers & subscribers
   rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr servo_states_pub_;
   rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr mujoco_control_input_pub_;
-  rclcpp::Publisher<spinal::msg::JointProfiles>::SharedPtr joint_profile_pub_;
+  rclcpp::Publisher<spinal_msgs::msg::JointProfiles>::SharedPtr joint_profile_pub_;
 
-  rclcpp::Subscription<spinal::msg::UavInfo>::SharedPtr uav_info_sub_;
+  rclcpp::Subscription<spinal_msgs::msg::UavInfo>::SharedPtr uav_info_sub_;
 
-  std::map<std::string, rclcpp::Subscription<spinal::msg::ServoStates>::SharedPtr> servo_states_subs_;
+  std::map<std::string, rclcpp::Subscription<spinal_msgs::msg::ServoStates>::SharedPtr> servo_states_subs_;
   std::map<std::string, rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr> servo_ctrl_subs_;
   std::map<std::string, rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr> servo_torque_ctrl_subs_;
 
   std::map<std::string, rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr> servo_enable_srvs_;
 
-  std::map<std::string, rclcpp::Publisher<spinal::msg::ServoControlCmd>::SharedPtr> servo_target_pos_pubs_;
-  std::map<std::string, rclcpp::Publisher<spinal::msg::ServoControlCmd>::SharedPtr> servo_target_torque_pubs_;
-  std::map<std::string, rclcpp::Publisher<spinal::msg::ServoTorqueCmd>::SharedPtr> servo_enable_pubs_;
+  std::map<std::string, rclcpp::Publisher<spinal_msgs::msg::ServoControlCmd>::SharedPtr> servo_target_pos_pubs_;
+  std::map<std::string, rclcpp::Publisher<spinal_msgs::msg::ServoControlCmd>::SharedPtr> servo_target_torque_pubs_;
+  std::map<std::string, rclcpp::Publisher<spinal_msgs::msg::ServoTorqueCmd>::SharedPtr> servo_enable_pubs_;
 
   // simulation-only: individual float64 command pubs
   std::map<std::string, rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr> servo_target_pos_sim_pubs_;

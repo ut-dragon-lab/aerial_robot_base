@@ -27,6 +27,7 @@ find_package(tinyxml2_vendor REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(controller_manager_msgs REQUIRED)
 find_package(spinal REQUIRED)
+find_package(spinal_msgs REQUIRED)
 find_package(kalman_filter REQUIRED)
 find_package(TinyXML2 REQUIRED)
 find_package(interactive_markers REQUIRED)
@@ -46,6 +47,7 @@ set(COMMON_DEPENDENCIES
   std_srvs
   tf2_ros
   spinal
+  spinal_msgs
 )
 
 set(MODEL_LIB_DEPENDENCIES
@@ -179,6 +181,7 @@ if(BUILD_TESTING)
     rclcpp
     sensor_msgs
     spinal
+    spinal_msgs
     )
   target_link_libraries(numerical_jacobian_test
     aerial_robot_model_base
@@ -248,6 +251,7 @@ ament_export_dependencies(
   visualization_msgs
   controller_manager_msgs
   spinal
+  spinal_msgs
   )
 
 ament_package()

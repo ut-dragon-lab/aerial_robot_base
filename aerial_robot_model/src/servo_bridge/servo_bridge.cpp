@@ -115,21 +115,21 @@ ServoBridge::ServoBridge(rclcpp::Node::SharedPtr node) : node_(node) {
 
     //--- common‐group interfaces ---
     if (!state_sub_topic.empty()) {
-      servo_states_subs_[group] = node_->create_subscription<spinal::msg::ServoStates>(
+      servo_states_subs_[group] = node_->create_subscription<spinal_msgs::msg::ServoStates>(
           state_sub_topic, rclcpp::SystemDefaultsQoS(),
-          [this, group](spinal::msg::ServoStates::ConstSharedPtr msg) { this->servoStatesCallback(msg, group); });
+          [this, group](spinal_msgs::msg::ServoStates::ConstSharedPtr msg) { this->servoStatesCallback(msg, group); });
     }
     if (!pos_pub_topic.empty()) {
       servo_target_pos_pubs_[group] =
-          node_->create_publisher<spinal::msg::ServoControlCmd>(pos_pub_topic, rclcpp::SystemDefaultsQoS());
+          node_->create_publisher<spinal_msgs::msg::ServoControlCmd>(pos_pub_topic, rclcpp::SystemDefaultsQoS());
     }
     if (!torque_pub_topic.empty()) {
       servo_target_torque_pubs_[group] =
-          node_->create_publisher<spinal::msg::ServoControlCmd>(torque_pub_topic, rclcpp::SystemDefaultsQoS());
+          node_->create_publisher<spinal_msgs::msg::ServoControlCmd>(torque_pub_topic, rclcpp::SystemDefaultsQoS());
     }
     if (!enable_pub_topic.empty()) {
       servo_enable_pubs_[group] =
-          node_->create_publisher<spinal::msg::ServoTorqueCmd>(enable_pub_topic, rclcpp::SystemDefaultsQoS());
+          node_->create_publisher<spinal_msgs::msg::ServoTorqueCmd>(enable_pub_topic, rclcpp::SystemDefaultsQoS());
     }
     // service for torque‐enable
     servo_enable_srvs_[group] = node_->create_service<std_srvs::srv::SetBool>(
@@ -231,14 +231,14 @@ ServoBridge::ServoBridge(rclcpp::Node::SharedPtr node) : node_(node) {
       node_->create_publisher<sensor_msgs::msg::JointState>("mujoco/ctrl_input", rclcpp::SystemDefaultsQoS());
   // 7) joint_profile output
   joint_profile_pub_ =
-      node_->create_publisher<spinal::msg::JointProfiles>("joint_profiles", rclcpp::SystemDefaultsQoS());
+      node_->create_publisher<spinal_msgs::msg::JointProfiles>("joint_profiles", rclcpp::SystemDefaultsQoS());
   // 8) UAV info subscriber
-  uav_info_sub_ = node_->create_subscription<spinal::msg::UavInfo>(
+  uav_info_sub_ = node_->create_subscription<spinal_msgs::msg::UavInfo>(
       "uav_info", rclcpp::SystemDefaultsQoS(), std::bind(&ServoBridge::uavInfoCallback, this, std::placeholders::_1));
 }
 
 // --- servoStatesCallback ---------------------------------------------------
-void ServoBridge::servoStatesCallback(const spinal::msg::ServoStates::ConstSharedPtr state_msg,
+void ServoBridge::servoStatesCallback(const spinal_msgs::msg::ServoStates::ConstSharedPtr state_msg,
                                       const std::string& servo_group_name) {
   if (servo_group_name != "common") {
     auto& handlers = servos_handler_[servo_group_name];
@@ -292,8 +292,8 @@ void ServoBridge::servoStatesCallback(const spinal::msg::ServoStates::ConstShare
 // --- servoCtrlCallback -----------------------------------------------------
 void ServoBridge::servoCtrlCallback(const sensor_msgs::msg::JointState::ConstSharedPtr servo_ctrl_msg,
                                     const std::string& servo_group_name) {
-  auto target_angle_msg = spinal::msg::ServoControlCmd();
-  auto target_torque_msg = spinal::msg::ServoControlCmd();
+  auto target_angle_msg = spinal_msgs::msg::ServoControlCmd();
+  auto target_torque_msg = spinal_msgs::msg::ServoControlCmd();
   auto mujoco_msg = sensor_msgs::msg::JointState();
 
   const auto& names = servo_ctrl_msg->name;
@@ -387,7 +387,7 @@ void ServoBridge::servoCtrlCallback(const sensor_msgs::msg::JointState::ConstSha
 // --- servoTorqueCtrlCallback ------------------------------------------------
 void ServoBridge::servoTorqueCtrlCallback(const sensor_msgs::msg::JointState::ConstSharedPtr servo_ctrl_msg,
                                           const std::string& servo_group_name) {
-  auto target_torque_msg = spinal::msg::ServoControlCmd();
+  auto target_torque_msg = spinal_msgs::msg::ServoControlCmd();
   const auto& names = servo_ctrl_msg->name;
   const auto& eff = servo_ctrl_msg->effort;
 
@@ -434,7 +434,7 @@ void ServoBridge::servoEnableCallback(const std::shared_ptr<std_srvs::srv::SetBo
                                       std::shared_ptr<std_srvs::srv::SetBool::Response> res,
                                       const std::string& servo_group_name) {
   // build torque‐enable message
-  auto torque_msg = spinal::msg::ServoTorqueCmd();
+  auto torque_msg = spinal_msgs::msg::ServoTorqueCmd();
   for (auto& h : servos_handler_[servo_group_name]) {
     torque_msg.index.push_back(h->getId());
     torque_msg.torque_enable.push_back(req->data);
@@ -449,20 +449,20 @@ void ServoBridge::servoEnableCallback(const std::shared_ptr<std_srvs::srv::SetBo
 }
 
 // --- uavInfoCallback --------------------------------------------------------
-void ServoBridge::uavInfoCallback(const spinal::msg::UavInfo::ConstSharedPtr /*uav_msg*/) {
+void ServoBridge::uavInfoCallback(const spinal_msgs::msg::UavInfo::ConstSharedPtr /*uav_msg*/) {
   // publish joint profiles
-  auto out = spinal::msg::JointProfiles();
+  auto out = spinal_msgs::msg::JointProfiles();
   for (const auto& [group, handlers] : servos_handler_) {
     for (const auto& h : handlers) {
-      auto jp = spinal::msg::JointProfile();
+      auto jp = spinal_msgs::msg::JointProfile();
       jp.servo_id = h->getId();
       jp.angle_sgn = h->getAngleSgn();
       jp.angle_scale = h->getAngleScale();
       jp.zero_point_offset = h->getZeroPointOffset();
       if (group == "joints")
-        jp.type = spinal::msg::JointProfile::JOINT;
+        jp.type = spinal_msgs::msg::JointProfile::JOINT;
       else if (group == "gimbals")
-        jp.type = spinal::msg::JointProfile::GIMBAL;
+        jp.type = spinal_msgs::msg::JointProfile::GIMBAL;
       else {
         RCLCPP_ERROR(node_->get_logger(), "Invalid servo group '%s', must be 'joints' or 'gimbals'", group.c_str());
         continue;

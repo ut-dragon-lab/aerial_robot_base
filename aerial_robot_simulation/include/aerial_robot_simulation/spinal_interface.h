@@ -36,7 +36,7 @@
 #pragma once
 
 #include <aerial_robot_simulation/rotor_handle.h>
-#include <state_estimate/state_estimate.h>
+#include <state_estimate/state_estimate_ros_module_sim.h>
 
 #include <algorithm>
 #include <cassert>
@@ -68,13 +68,13 @@ class SpinalInterface {
   void stateEstimate();
   inline void onGround(bool flag) { on_ground_ = flag; }
 
-  StateEstimate* getEstimatorPtr() { return &spinal_state_estimator_; }
+  StateEstimateRosModuleSim* getEstimatorPtr() { return &spinal_state_estimator_; }
 
  private:
   std::shared_ptr<rclcpp_lifecycle::LifecycleNode> node_;
   uint8_t joint_num_{0};
   bool on_ground_{true};
-  StateEstimate spinal_state_estimator_;
+  StateEstimateRosModuleSim spinal_state_estimator_;
   bool is_init_{false};
 };
 
