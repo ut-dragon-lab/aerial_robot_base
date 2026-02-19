@@ -60,7 +60,8 @@ AerialRobotCore::AerialRobotCore(rclcpp::Node::SharedPtr node) : node_(node) {
   } else {
     // create timer
     auto period = std::chrono::duration<double>(1.0 / main_rate);
-    main_timer_ = node_->create_wall_timer(period, std::bind(&AerialRobotCore::mainFunc, this));
+    main_timer_ = rclcpp::create_timer(node_, node_->get_clock(), period,
+                                       std::bind(&AerialRobotCore::mainFunc, this));
   }
 
   // // for debug
