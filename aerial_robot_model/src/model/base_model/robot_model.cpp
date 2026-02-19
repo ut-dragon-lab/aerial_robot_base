@@ -94,10 +94,9 @@ void RobotModel::getParamFromRos() {
 void RobotModel::kinematicsInit() {
   // URDF
   std::string urdf_xml;
-  if (!node_->get_parameter("robot_description", urdf_xml)) {
-    RCLCPP_ERROR(LOGGER, "parameter 'robot_description' not set");
-    return;
-  }
+  node_->declare_parameter<std::string>("robot_description", "");
+  node_->get_parameter("robot_description", urdf_xml);
+
   if (!model_.initString(urdf_xml)) {
     RCLCPP_ERROR(LOGGER, "Failed to parse URDF from parameter");
     return;

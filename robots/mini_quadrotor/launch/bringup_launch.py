@@ -146,7 +146,8 @@ def generate_launch_description():
         executable='aerial_robot_core_node',
         name='aerial_robot_core',
         namespace=robot_ns,
-        parameters=[{'use_sim_time': sim},
+        parameters=[{'use_sim_time': sim,
+                     'main_rate': 40.0},
                     robot_description, robot_model_plugin_name],
         output = 'screen'
     )
