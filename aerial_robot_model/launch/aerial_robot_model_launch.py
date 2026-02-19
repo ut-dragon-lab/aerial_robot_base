@@ -24,7 +24,8 @@ def generate_launch_description():
 
     # --- LaunchConfiguration ---
     headless         = LaunchConfiguration('headless')
-    need_js          = LaunchConfiguration('need_joint_state')
+    rm               = LaunchConfiguration('rm')
+    sim              = LaunchConfiguration('sim')
     model_options    = LaunchConfiguration('model_options')
     robot_model_pkg  = LaunchConfiguration('robot_model')
     robot_ns         = LaunchConfiguration('robot_ns')
@@ -38,10 +39,16 @@ def generate_launch_description():
         description='Run without GUI (headless mode)'
     )
 
-    need_joint_state_arg = DeclareLaunchArgument(
-        'need_joint_state',
-        default_value='true',
-        description='Whether to publish joint state information'
+    simulation_arg = DeclareLaunchArgument(
+        'sim',
+        default_value='false',
+        description='Run in simulation mode (e.g., use Gazebo clock)'
+    )
+
+    realmachine_arg = DeclareLaunchArgument(
+        'rm',
+        default_value='false',
+        description='Run in realmachine mode'
     )
 
     model_options_arg = DeclareLaunchArgument(
@@ -86,7 +93,12 @@ def generate_launch_description():
         'config',
         robot_model_rviz
     ])
-    
+
+    # --- joint state condition parameter---
+    need_js = PythonExpression([
+        "'false' if '", sim, "' == 'true' or '", rm, "' == 'true' else 'true'"
+    ])
+
     # --- nodes ---
     robot_state_publisher_node = Node(
         package='robot_state_publisher',
@@ -95,10 +107,10 @@ def generate_launch_description():
         namespace=robot_ns,
         parameters=[
             robot_description,
-            {'use_sim_time': False, 'tf_prefix': robot_ns}
+            {'use_sim_time': sim, 'tf_prefix': robot_ns}
         ]
     )
-        
+
     rotor_tf_publisher_node = Node(
         package='aerial_robot_model',
         executable='rotor_tf_publisher',
@@ -106,7 +118,7 @@ def generate_launch_description():
         namespace=robot_ns,
         condition=UnlessCondition(need_js),
         parameters=[
-            {'tf_prefix': robot_ns},
+            {'use_sim_time': sim, 'tf_prefix': robot_ns},
             robot_description],
     )
 
@@ -116,22 +128,24 @@ def generate_launch_description():
         name='joint_state_publisher_gui',
         namespace=robot_ns,
         condition=IfCondition(need_js),
-        parameters=[robot_description]
+        parameters=[{'use_sim_time': sim}, robot_description],
     )
-            
+
     rviz2_node = Node(
         package='rviz2',
         executable='rviz2',
         name='rviz2',
         namespace=robot_ns,
         arguments=['-d', rviz_config],
-        condition=UnlessCondition(headless)
+        condition=UnlessCondition(headless),
+        parameters=[{'use_sim_time': sim}],
     )
 
     ld = LaunchDescription()
     ld.add_action(headless_arg)
+    ld.add_action(simulation_arg)
+    ld.add_action(realmachine_arg)
     ld.add_action(model_options_arg)
-    ld.add_action(need_joint_state_arg)
     ld.add_action(robot_model_pkg_arg)
     ld.add_action(robot_ns_arg)
     ld.add_action(robot_model_rviz_arg)

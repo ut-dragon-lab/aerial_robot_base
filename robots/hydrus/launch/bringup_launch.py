@@ -151,12 +151,6 @@ def generate_launch_description():
         )
     }
 
-    # --- joint state condition parameter---
-    need_js = PythonExpression([
-            # 'false' if sim=='true' or rm=='true' else 'true'
-        "'false' if '", sim, "' == 'true' or '", rm, "' == 'true' else 'true'"
-    ])
-
     # --- rviz config path ---w
     rviz_config = PathJoinSubstitution([
         FindPackageShare(robot_model_pkg),
@@ -170,7 +164,8 @@ def generate_launch_description():
         executable='aerial_robot_core_node',
         name='aerial_robot_core',
         namespace=robot_ns,
-        parameters=[robot_description, robot_model_plugin_name],
+        parameters=[{'use_sim_time': sim},
+                    robot_description, robot_model_plugin_name],
         output = 'screen'
     )
 
@@ -196,12 +191,13 @@ def generate_launch_description():
         ),
         launch_arguments={
             'headless': LaunchConfiguration('headless'),
+            'rm': LaunchConfiguration('rm'),
+            'sim': LaunchConfiguration('sim'),
             'model_options': LaunchConfiguration('model_options'),
             'robot_model': LaunchConfiguration('robot_model'),
             'robot_ns': LaunchConfiguration('robot_ns'),
             'robot_model_rviz': LaunchConfiguration('robot_model_rviz'),
             'robot_description_content': robot_description_content,
-            'need_joint_state': need_js,
         }.items(),
     )
     
@@ -224,14 +220,6 @@ def generate_launch_description():
         condition=IfCondition(sim),
     )
 
-    joint_state_broadcaster_spawner = Node(
-        namespace= robot_ns,
-        package='controller_manager',
-        executable='spawner',
-        arguments=['joint_state_broadcaster'],
-        condition=IfCondition(sim),
-    )
-
     joint_position_spawner = Node(
         namespace= robot_ns,
         package='controller_manager',
@@ -242,19 +230,6 @@ def generate_launch_description():
             'joint_group_position_controller',
             '--param-file', sim_param_file,
             '--param-file', servo_param_file,
-        ],
-        condition=IfCondition(sim),
-    )
-
-    att_controller_spawner = Node(
-        namespace= robot_ns,
-        package='controller_manager',
-        executable='spawner',
-        name='spawn_att_controller',
-        output='screen',
-        arguments=[
-            'attitude_controller',
-            '--param-file', sim_param_file
         ],
         condition=IfCondition(sim),
     )
@@ -275,7 +250,5 @@ def generate_launch_description():
     ld.add_action(servo_bridge_node)
     ld.add_action(model_launch)
     ld.add_action(sim_launch)
-    ld.add_action(joint_state_broadcaster_spawner)
     ld.add_action(joint_position_spawner)
-    ld.add_action(att_controller_spawner)
     return ld
