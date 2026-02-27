@@ -106,6 +106,9 @@ install(
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_include_directories(include/My_Lib)
 
-ament_export_dependencies(rosidl_default_runtime)
+ament_export_dependencies(rosidl_default_runtime
+                          std_msgs
+                          geometry_msgs
+                          rclcpp_lifecycle)
 
 ament_package()
