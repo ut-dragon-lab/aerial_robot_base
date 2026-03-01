@@ -77,6 +77,13 @@ inline geometry_msgs::msg::PointStamped kdlToMsg(const KDL::Vector& in) {
   return out;
 }
 
+inline geometry_msgs::msg::Twist kdlToMsg(const KDL::Twist& in) {
+  tf2::Stamped<KDL::Twist> tmp;
+  tmp.setData(in);
+  geometry_msgs::msg::TwistStamped out = tf2::toMsg(tmp);
+  return out.twist;
+}
+
 inline std::vector<geometry_msgs::msg::PointStamped> kdlToMsg(const std::vector<KDL::Vector>& in) {
   return convertVector<geometry_msgs::msg::PointStamped, KDL::Vector>(
       in, [](const KDL::Vector& v) -> geometry_msgs::msg::PointStamped { return kdlToMsg(v); });
