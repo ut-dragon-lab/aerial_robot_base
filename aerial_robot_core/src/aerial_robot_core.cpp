@@ -41,12 +41,11 @@
 using namespace std::chrono_literals;
 
 AerialRobotCore::AerialRobotCore(rclcpp::Node::SharedPtr node) : node_(node) {
-  // declare parameters
-  node_->declare_parameter<bool>("param_verbose", true);
-  node_->declare_parameter<double>("main_rate", 1.0);
   // get parameters
-  bool param_verbose = node_->get_parameter("param_verbose").as_bool();
-  double main_rate = node_->get_parameter("main_rate").as_double();
+  bool param_verbose;
+  node_->get_parameter_or("param_verbose", param_verbose, false);
+  double main_rate;
+  node_->get_parameter_or("main_rate", main_rate, 1.0);
 
   robot_model_ros_ = std::make_shared<aerial_robot_model::RobotModelRos>(node_);
   auto robot_model = robot_model_ros_->getRobotModel();
