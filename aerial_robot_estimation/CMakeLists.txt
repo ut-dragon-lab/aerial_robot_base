@@ -15,9 +15,10 @@ find_package(geometry_msgs REQUIRED)
 find_package(kalman_filter REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(pluginlib REQUIRED)
+find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(spinal REQUIRED)
-find_package(rclcpp REQUIRED)
+find_package(tf2_eigen_kdl REQUIRED)
 
 # --- common dependent packages ---
 set(ROS_DEPENDENCIES
@@ -29,13 +30,14 @@ set(ROS_DEPENDENCIES
   kalman_filter
   nav_msgs
   pluginlib
+  rclcpp
   sensor_msgs
   std_srvs
   spinal
-  rclcpp
+  tf2_eigen_kdl
 )
 
-# --- aerial_robot_model_base library ---
+# --- aerial_robot_estimation library ---
 add_library(aerial_robot_estimation SHARED
   src/state_estimation.cpp
 )
@@ -48,9 +50,24 @@ target_include_directories(aerial_robot_estimation
   $<INSTALL_INTERFACE:include>
   )
 
+# --- sensor plugin library ---
+add_library(sensor_pluginlib SHARED
+  src/sensor/imu.cpp
+  src/sensor/ground_truth.cpp
+  src/sensor/mocap.cpp
+  src/sensor/odom.cpp
+)
+ament_target_dependencies(sensor_pluginlib
+  ${ROS_DEPENDENCIES}
+)
+target_include_directories(sensor_pluginlib
+  PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+  )
+
 
 ament_export_include_directories(include)
-#ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 ament_export_dependencies(ROS_DEPENDENCIES
   aerial_robot_model
   aerial_robot_msgs
@@ -63,6 +80,7 @@ ament_export_dependencies(ROS_DEPENDENCIES
   sensor_msgs
   std_srvs
   spinal
+  tf2_eigen_kdl
 )
 
 ament_package()

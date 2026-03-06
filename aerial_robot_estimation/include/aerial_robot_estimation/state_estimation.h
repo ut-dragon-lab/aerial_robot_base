@@ -15,7 +15,7 @@
  *     copyright notice, this list of conditions and the following
  *     disclaimer in the documentation and/o2r other materials provided
  *     with the distribution.
- *   * Neither the name of the JSK Lab nor the names of its
+ *   * Neither the name of the DRAGON Lab nor the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -60,27 +60,30 @@
 
 using StatusVector = std::array<int, 3>; // x, y, z
 using StatusMatrix = std::array<StatusVector, 3>; // egomotion, experiment, ground truth
-using SensorFuser = std::vector< std::pair<std::string, std::shared_ptr<kf_plugin::KalmanFilter> > >;
+using FuserPtr = std::shared_ptr<kf_plugin::KalmanFilter>;
+using FuserMap = std::map<std::string, FuserPtr>;
 
-namespace Sensor
-{
-  enum
-    {
-      UNHEALTH_LEVEL1 = 1, // do nothing
-      UNHEALTH_LEVEL2, // change estimation mode
-      UNHEALTH_LEVEL3, // force landing
-    };
+namespace State {
+  enum {
+      X, Y, Z
+  };
+};
+
+namespace Sensor {
+  enum {
+    UNHEALTH_LEVEL1 = 1, // do nothing
+    UNHEALTH_LEVEL2, // change estimation mode
+    UNHEALTH_LEVEL3, // force landing
+  };
 };
 
 /* pre-definition */
-namespace sensor_plugin
-{
+namespace sensor_plugin {
   class  SensorBase;
 };
 
 
-namespace aerial_robot_estimation
-{
+namespace aerial_robot_estimation {
   //mode
   static constexpr int NONE = -1;
   static constexpr int EGOMOTION_ESTIMATE = 0;
@@ -89,8 +92,7 @@ namespace aerial_robot_estimation
 
   static constexpr float G = 9.797;
 
-  class StateEstimator: public std::enable_shared_from_this<StateEstimator>
-  {
+  class StateEstimator: public std::enable_shared_from_this<StateEstimator> {
 
   public:
     StateEstimator();
@@ -113,8 +115,17 @@ namespace aerial_robot_estimation
     void setBaseTwist(int estimate_mode, KDL::Twist twist);
     const KDL::Vector getBasePos(int estimate_mode);
     void setBasePos(int estimate_mode, KDL::Vector pos);
+    void setBasePosX(int estimate_mode, double pos);
+    void setBasePosY(int estimate_mode, double pos);
+    void setBasePosZ(int estimate_mode, double pos);
     const KDL::Vector getBaseVel(int estimate_mode);
     void setBaseVel(int estimate_mode, KDL::Vector vel);
+    void setBaseVelX(int estimate_mode, double vel);
+    void setBaseVelY(int estimate_mode, double vel);
+    void setBaseVelZ(int estimate_mode, double vel);
+    const KDL::Vector getBaseAcc(int estimate_mode);
+    void setBaseAcc(int estimate_mode, KDL::Vector acc);
+
     const KDL::Rotation getBaseOrientation(int estimate_mode);
     void setBaseOrientation(int estimate_mode, KDL::Rotation rot);
     const KDL::Vector getBaseEuler(int estimate_mode);
@@ -129,6 +140,8 @@ namespace aerial_robot_estimation
     void setCogPos(int estimate_mode, KDL::Vector pos);
     const KDL::Vector getCogVel(int estimate_mode);
     void setCogVel(int estimate_mode, KDL::Vector vel);
+    const KDL::Vector getCogAcc(int estimate_mode);
+    void setCogAcc(int estimate_mode, KDL::Vector acc);
     const KDL::Rotation getCogOrientation(int estimate_mode);
     void setCogOrientation(int estimate_mode, KDL::Rotation rot);
     const KDL::Vector getCogEuler(int estimate_mode);
@@ -137,6 +150,8 @@ namespace aerial_robot_estimation
 
     void setBaseOrientationWxB(int estimate_mode, KDL::Vector v);
     void setBaseOrientationWzB(int estimate_mode, KDL::Vector v);
+    void setCogOrientationWxB(int estimate_mode, KDL::Vector v);
+    void setCogOrientationWzB(int estimate_mode, KDL::Vector v);
 
 
     inline void setBaseQueueSize(const int& qu_size) {qu_size_ = qu_size;}
@@ -165,7 +180,7 @@ namespace aerial_robot_estimation
     inline const bool hasRefinedYawEstimate(int i) const {return has_refined_yaw_estimate_.at(i); }
     inline void SetRefinedYawEstimate(int i, bool flag) {has_refined_yaw_estimate_.at(i) = flag; }
 
-    const SensorFuser& getFuser(int mode);
+    const FuserMap& getFuserMap(int mode);
 
     inline int getEstimateMode() {return estimate_mode_;}
     inline void setEstimateMode(int estimate_mode) {estimate_mode_ = estimate_mode;}
@@ -239,7 +254,7 @@ namespace aerial_robot_estimation
     /* sensor fusion */
     pluginlib::ClassLoader<kf_plugin::KalmanFilter> fusion_loader_;
     bool sensor_fusion_flag_;
-    std::array<SensorFuser, 2> fuser_; //0: egomotion; 1: experiment
+    std::array<FuserMap, 2> fuser_maps_; //0: egomotion; 1: experiment
 
     /* sensor (un)health level */
     uint8_t unhealth_level_;

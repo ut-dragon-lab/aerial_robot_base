@@ -2,7 +2,7 @@
 /*********************************************************************
  * Software License Agreement (BSD License)
  *
- *  Copyright (c) 2017, JSK Lab
+ *  Copyright (c) 2026, DRAGON Lab
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -15,7 +15,7 @@
  *     copyright notice, this list of conditions and the following
  *     disclaimer in the documentation and/o2r other materials provided
  *     with the distribution.
- *   * Neither the name of the JSK Lab nor the names of its
+ *   * Neither the name of the DRAGON Lab nor the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -33,393 +33,301 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-#include <aerial_robot_estimation/sensor/base_plugin.h>
+#include <aerial_robot_estimation/sensor/mocap.h>
 #include <aerial_robot_estimation/sensor/imu.h>
-#include <geometry_msgs/PoseStamped.h>
-#include <kalman_filter/kf_pos_vel_acc_plugin.h>
-#include <nav_msgs/Odometry.h>
-#include <std_msgs/Float32.h>
 
-using namespace Eigen;
-using namespace std;
 using namespace aerial_robot_estimation;
-
-namespace
-{
-  bool first_flag = true;
-  bool ground_truth_first_flag = true;
-  ros::Time previous_time;
-};
 
 namespace sensor_plugin
 {
-  class Mocap : public sensor_plugin::SensorBase
-  {
-  public:
-    void initialize(ros::NodeHandle nh,
-                    boost::shared_ptr<aerial_robot_model::RobotModel> robot_model,
-                    boost::shared_ptr<aerial_robot_estimation::StateEstimator> estimator,
-                    string sensor_name, int index)
-    {
-      SensorBase::initialize(nh, robot_model, estimator, sensor_name, index);
-      rosParamInit();
+  Mocap::Mocap():
+    sensor_plugin::SensorBase() {
 
-      //low pass filter
-      lpf_pos_ = IirFilter(sample_freq_, cutoff_pos_freq_, 3);
-      lpf_vel_ = IirFilter(sample_freq_, cutoff_vel_freq_, 3);
-      lpf_angular_ = IirFilter(sample_freq_, cutoff_vel_freq_, 3);
+    states_.states.resize(6);
+    states_.states[0].id = "x";
+    states_.states[0].state.resize(2);
+    states_.states[1].id = "y";
+    states_.states[1].state.resize(2);
+    states_.states[2].id = "z";
+    states_.states[2].state.resize(2);
+    states_.states[3].id = "roll";
+    states_.states[3].state.resize(2);
+    states_.states[4].id = "pitch";
+    states_.states[4].state.resize(2);
+    states_.states[5].id = "yaw";
+    states_.states[5].state.resize(2);
 
-      std::string topic_name;
-      getParam<std::string>("mocap_sub_name", topic_name, std::string("pose"));
-      ros::TransportHints hint = ros::TransportHints();
-      bool mocap_udp;
-      getParam<bool>("mocap_udp", mocap_udp, false);
-      if (mocap_udp) {
-	hint = ros::TransportHints().udp();
-	ROS_INFO("use UDP for mocap subscribe");
+    raw_pose_  = KDL::Frame::Identity();
+    pose_      = KDL::Frame::Identity();
+    prev_raw_pose_ = KDL::Frame::Identity();
+    raw_twist_  = KDL::Twist::Zero();
+    twist_      = KDL::Twist::Zero();
+    prev_raw_twist_ = KDL::Twist::Zero();
+  }
+
+  void Mocap::initialize(rclcpp::Node::SharedPtr node,
+                         RobotModelPtr robot_model,
+                         EstimatorPtr estimator,
+                         string sensor_name, int index) {
+
+    SensorBase::initialize(node, robot_model, estimator, sensor_name, index);
+
+    std::string topic_name;
+    getParam<std::string>("mocap_sub_name", topic_name, std::string("pose"));
+    msg_sub_ = node_->create_subscription<geometry_msgs::msg::PoseStamped>
+      (topic_name, rclcpp::SystemDefaultsQoS(),
+       std::bind(&Mocap::poseCallback, this, std::placeholders::_1));
+
+    topic_name = sensor_name + "/" + std::to_string(index) + "/states";
+    state_pub_ = node_->create_publisher<aerial_robot_msgs::msg::States>
+      (topic_name, rclcpp::SystemDefaultsQoS());
+
+
+    rosParamInit();
+    // initialize low pass filter
+    lpf_pos_   = IirFilter(sample_freq_, cutoff_pos_freq_, 3);
+    lpf_vel_   = IirFilter(sample_freq_, cutoff_vel_freq_, 3);
+    lpf_omega_ = IirFilter(sample_freq_, cutoff_vel_freq_, 3);
+
+  }
+
+  void Mocap::poseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
+
+    tf2::fromMsg(msg->pose, raw_pose_);
+
+    time_stamp_ = msg->header.stamp;
+
+    estimateProcess();
+
+    prev_raw_pose_ = raw_pose_;
+    prev_raw_twist_ = raw_twist_;
+
+    prev_time_stamp_ = time_stamp_;
+  }
+
+  void Mocap::estimateProcess() {
+
+    if(sensor_status_ == Status::INVALID) return;
+
+    /* initialize */
+    if(prev_raw_pose_ == KDL::Frame::Identity())
+      {
+        Eigen::Vector3d pos_vec;
+        tf2::vectorKDLToEigen(raw_pose_.p, pos_vec);
+        lpf_pos_.setInitValues(pos_vec); //init pos filter with the first non-zero value
+
+        activateFuser();
+        estimator_->SetRefinedYawEstimate(EXPERIMENT_ESTIMATE, true);
+
+        return;
       }
 
-      mocap_sub_ = nh_.subscribe(topic_name, 1, &Mocap::poseCallback, this, hint); // buffer size 1: only need the latest value.
-      nhp_.param("ground_truth_sub_name", topic_name, std::string("ground_truth"));
-      ground_truth_sub_ = nh_.subscribe(topic_name, 1, &Mocap::groundTruthCallback, this, ros::TransportHints().tcpNoDelay());
-    }
+    /* preprocess */
+    preProcessState();
 
-    ~Mocap() {}
+    /* do fusion */
+    fuse();
 
-    Mocap():
-      sensor_plugin::SensorBase(),
-      raw_pos_(0, 0, 0),
-      raw_vel_(0, 0, 0),
-      pos_(0, 0, 0),
-      vel_(0, 0, 0),
-      prev_raw_pos_(0, 0, 0),
-      prev_raw_vel_(0, 0, 0),
-      prev_raw_q_(0, 0, 0, 1),
-      receive_groundtruth_odom_(false)
-    {
-      ground_truth_pose_.states.resize(6);
-      ground_truth_pose_.states[0].id = "x";
-      ground_truth_pose_.states[0].state.resize(2);
-      ground_truth_pose_.states[1].id = "y";
-      ground_truth_pose_.states[1].state.resize(2);
-      ground_truth_pose_.states[2].id = "z";
-      ground_truth_pose_.states[2].state.resize(2);
-      ground_truth_pose_.states[3].id = "rot_x";
-      ground_truth_pose_.states[3].state.resize(2);
-      ground_truth_pose_.states[4].id = "rot_y";
-      ground_truth_pose_.states[4].state.resize(2);
-      ground_truth_pose_.states[5].id = "rot_z";
-      ground_truth_pose_.states[5].state.resize(2);
-    }
+    /* set the states */
+    setState();
 
-    static constexpr int TIME_SYNC_CALIB_COUNT = 10;
+    /* publish topics */
+    publish();
 
-  private:
-    /* ros */
-    ros::Subscriber mocap_sub_, ground_truth_sub_;
+    /* update health state */
+    updateHealthStamp();
+  }
 
-    /* ros param */
-    double sample_freq_;
-    double cutoff_pos_freq_;
-    double cutoff_vel_freq_;
+  void Mocap::activateFuser() {
 
-    double pos_noise_sigma_, angle_noise_sigma_, acc_bias_noise_sigma_;
+    /* set ground truth */
+    estimator_->setBasePosStateStatus(State::X, GROUND_TRUTH, true);
+    estimator_->setBasePosStateStatus(State::Y, GROUND_TRUTH, true);
+    estimator_->setBasePosStateStatus(State::Z, GROUND_TRUTH, true);
+    estimator_->setBaseRotStateStatus(GROUND_TRUTH, true);
+    estimator_->setCogRotStateStatus(GROUND_TRUTH, true);
 
-    IirFilter lpf_pos_; /* x, y, z */
-    IirFilter lpf_vel_; /* x, y, z */
-    IirFilter lpf_angular_; /* yaw angular velocity */
+    bool fuse_flag = estimate_mode_ & (1 << EXPERIMENT_ESTIMATE);
+    if(!fuse_flag) return;
 
-    tf::Vector3 raw_pos_, raw_vel_;
-    tf::Vector3 pos_, vel_;
+    estimator_->setBasePosStateStatus(State::X, EXPERIMENT_ESTIMATE, true);
+    estimator_->setBasePosStateStatus(State::Y, EXPERIMENT_ESTIMATE, true);
+    estimator_->setBasePosStateStatus(State::Z, EXPERIMENT_ESTIMATE, true);
 
-    tf::Vector3 prev_raw_pos_, prev_raw_vel_;
-    tf::Quaternion prev_raw_q_;
+    for(auto& fuser : estimator_->getFuserMap(EXPERIMENT_ESTIMATE))
+      {
+        string plugin_name = fuser.first;
+        FuserPtr kf = fuser.second;
+        int id = kf->getId();
 
-    bool receive_groundtruth_odom_;
+        /* x, y, z */
+        if(plugin_name == "kalman_filter/kf_pos_vel_acc") {
 
-    /* ros msg */
-    aerial_robot_msgs::States ground_truth_pose_;
+          if(id & (1 << State::X)) {
+            kf->setInitState(raw_pose_.p.x(), 0);
+          }
 
-    void poseCallback(const geometry_msgs::PoseStampedConstPtr & msg)
-    {
-      tf::pointMsgToTF(msg->pose.position, raw_pos_);
+          if(id & (1 << State::Y)) {
+            kf->setInitState(raw_pose_.p.y(), 0);
+          }
 
-      tf::Quaternion q;
-      tf::quaternionMsgToTF(msg->pose.orientation, q);
+          if(id & (1 << State::Z)) {
+            kf->setInitState(raw_pose_.p.z(), 0);
+          }
 
-      if(!first_flag)
+          kf->setMeasureFlag();
+        }
+      }
+  }
+
+  void Mocap::preProcessState() {
+
+    float delta_t = time_stamp_.seconds() - prev_time_stamp_.seconds();
+    raw_twist_.vel = (raw_pose_.p - prev_raw_pose_.p) / delta_t;
+
+    KDL::Rotation rot_delta = prev_raw_pose_.M.Inverse() * raw_pose_.M;
+    double r, p, y;
+    rot_delta.GetRPY(r, p, y);
+    raw_twist_.rot = KDL::Vector(r/delta_t, p/delta_t, y/delta_t);
+
+    pose_.M = raw_pose_.M; // no low pass filter for oritation
+
+    /* lpf */
+    Eigen::Vector3d in_vec, out_vec;
+    tf2::vectorKDLToEigen(raw_pose_.p, in_vec);
+    out_vec = lpf_pos_.filterFunction(in_vec);
+    tf2::vectorEigenToKDL(out_vec, pose_.p);
+
+    tf2::vectorKDLToEigen(raw_twist_.vel, in_vec);
+    out_vec = lpf_vel_.filterFunction(in_vec);
+    tf2::vectorEigenToKDL(out_vec, twist_.vel);
+
+    tf2::vectorKDLToEigen(raw_twist_.rot, in_vec);
+    out_vec = lpf_omega_.filterFunction(in_vec);
+    tf2::vectorEigenToKDL(out_vec, twist_.rot);
+  }
+
+  void Mocap::fuse() {
+    /* start experiment estimation */
+
+    bool flag = estimate_mode_ & (1 << EXPERIMENT_ESTIMATE);
+    if(!flag) return;
+
+    for(auto& fuser : estimator_->getFuserMap(EXPERIMENT_ESTIMATE)) {
+
+      string plugin_name = fuser.first;
+      FuserPtr  kf = fuser.second;
+      int id = kf->getId();
+
+      if(plugin_name == "kalman_filter/kf_pos_vel_acc")
         {
-          float delta_t = msg->header.stamp.toSec() - previous_time.toSec();
-          raw_vel_ = (raw_pos_ - prev_raw_pos_) / delta_t;
+          int index;
 
-          /* TODO: not working
-          tf::Quaternion q_delta = prev_raw_q_.inverse() * q;
-          tf::Vector3 raw_omega = q_delta.getAxis() * q_delta.getAngle() / delta_t;
-          */
+          if(id & (1 << State::X)) index = 0;
+          else if(id & (1 << State::Y)) index = 1;
+          else if(id & (1 << State::Z)) index = 2;
+          else {
+            RCLCPP_ERROR_THROTTLE
+              (logger_, *node_->get_clock(), 1.0,
+               "Wrong index for KF fusion, id is %d", id);
+            return;
+          }
 
-          tf::Matrix3x3 r_delta(prev_raw_q_.inverse() * q);
-          double r, p, y;
-          r_delta.getRPY(r, p, y);
-          tf::Vector3 raw_omega(r/delta_t, p/delta_t, y/delta_t);
-
-          /* lpf */
-          pos_ = lpf_pos_.filterFunction(raw_pos_);
-          vel_ = lpf_vel_.filterFunction(raw_vel_);
-          tf::Vector3 omega = lpf_angular_.filterFunction(raw_omega);
-
-          tf::Matrix3x3 rot(q);
-          tf::Transform c2b_tf;
-          tf::transformKDLToTF(robot_model_->getCog2Baselink<KDL::Frame>(), c2b_tf);
-          tf::Matrix3x3 rot_c = rot * c2b_tf.getBasis().inverse();
-
-          // EXPERIMENT_ESTIMATE mode
-          // only update the wx_b vector (the vector only related to yaw)
-          tf::Vector3 wx_b = rot.getRow(0);
-          tf::Vector3 wx_c = c2b_tf.getBasis() * wx_b;
-          estimator_->setOrientationWxB(Frame::BASELINK, EXPERIMENT_ESTIMATE, wx_b);
-          estimator_->setOrientationWxB(Frame::COG, EXPERIMENT_ESTIMATE, wx_c);
-
-          // GROUND TRUTH mode
-          // if the ground truth message is received as geomtery_msgs::PoseStamped
-          // (i.e., mocap in real expriment), we only use set the orientation.
-          // Becuase the ang velocity can be obtained from IMU
-          if(!receive_groundtruth_odom_)
+          // if kf state dimenstion is 2 (pos + vel),
+          // force change 3 (pos + vel + acc_bias)
+          if(kf->getStateDim() == 2 && acc_bias_noise_sigma_ > 0)
             {
-              estimator_->setOrientation(Frame::BASELINK, GROUND_TRUTH, rot);
-              estimator_->setOrientation(Frame::COG, GROUND_TRUTH, rot_c);
-              setGroundTruthPosVel(pos_, vel_);
+              if(kf->getPredictionNoiseCovariance().rows() == 0) return;
+
+              // force acc bias estimation by kalman filter
+              Eigen::VectorXd input_noise_sigma(2);
+              input_noise_sigma <<
+                kf->getPredictionNoiseCovariance()(0, 0),
+                acc_bias_noise_sigma_;
+
+              kf->setPredictionNoiseCovariance(input_noise_sigma);
+              kf->setInitState(raw_pose_.p[index], 0);
             }
 
-          ground_truth_pose_.header.stamp = msg->header.stamp;
-
-          for(int i = 0; i < 6; i++)
-            {
-              if(i < 3)
-                {
-                  ground_truth_pose_.states[i].state[0].x = raw_pos_[i];
-                  ground_truth_pose_.states[i].state[0].y = raw_vel_[i];
-                  ground_truth_pose_.states[i].state[1].x = pos_[i];
-                  ground_truth_pose_.states[i].state[1].y = vel_[i];
-                }
-              else
-                {
-                  ground_truth_pose_.states[i].state[0].y = raw_omega[i - 3];
-                  ground_truth_pose_.states[i].state[1].y = omega[i - 3];
-                }
-            }
-
-          /* estimation */
-          estimateProcess(msg->header.stamp);
-          state_pub_.publish(ground_truth_pose_);
-        }
-
-      if(first_flag)
-        {
-          lpf_pos_.setInitValues(raw_pos_); //init pos filter with the first value
-          init(raw_pos_);
-          first_flag = false;
-          estimator_->SetRefinedYawEstimate(EXPERIMENT_ESTIMATE, true);
-        }
-
-
-      prev_raw_pos_ = raw_pos_;
-      prev_raw_vel_ = raw_vel_;
-      prev_raw_q_ = q;
-
-      previous_time = msg->header.stamp;
-      /* consider the remote wirleess transmission, we use the local time server */
-      updateHealthStamp();
-    }
-
-    void setGroundTruthPosVel(tf::Vector3 pos, tf::Vector3 vel, tf::Matrix3x3 rot, tf::Vector3 omega)
-    {
-      /* base link */
-      estimator_->setPos(Frame::BASELINK, GROUND_TRUTH, pos);
-      estimator_->setVel(Frame::BASELINK, GROUND_TRUTH, vel);
-
-      tf::Transform c2b_tf;
-      tf::transformKDLToTF(robot_model_->getCog2Baselink<KDL::Frame>(), c2b_tf);
-      tf::Vector3 b2c_pos = c2b_tf.inverse().getOrigin();
-
-      /* pos_cog = pos_baselink + R * pos_base2cog */
-      tf::Vector3 pos_c = pos + rot * b2c_pos;
-      estimator_->setPos(Frame::COG, GROUND_TRUTH, pos_c);
-      /* vel_cog = vel_baselink + R * (w x pos_base2cog) */
-      tf::Vector3 vel_c = vel +  rot * (omega.cross(b2c_pos));
-      estimator_->setVel(Frame::COG, GROUND_TRUTH, vel_c);
-    }
-
-    void setGroundTruthPosVel(tf::Vector3 pos, tf::Vector3 vel)
-    {
-      tf::Matrix3x3 rot = estimator_->getOrientation(Frame::BASELINK, GROUND_TRUTH);
-      tf::Vector3 omega = estimator_->getAngularVel(Frame::BASELINK, GROUND_TRUTH);
-
-      setGroundTruthPosVel(pos, vel, rot, omega);
-    }
-
-    void groundTruthCallback(const nav_msgs::OdometryConstPtr & msg)
-    {
-      tf::Vector3 pos, vel;
-      tf::pointMsgToTF(msg->pose.pose.position, pos);
-      tf::vector3MsgToTF(msg->twist.twist.linear, vel);
-
-      tf::Quaternion q;
-      tf::quaternionMsgToTF(msg->pose.pose.orientation, q);
-      tf::Matrix3x3 rot(q);
-
-      tf::Vector3 omega;
-      tf::vector3MsgToTF(msg->twist.twist.angular, omega);
-      omega = lpf_angular_.filterFunction(omega);
-
-      if(ground_truth_first_flag)
-        {
-          ground_truth_first_flag = false;
-          init(pos);
-          estimator_->receiveGroundTruthOdom(true);
-          receive_groundtruth_odom_ = true;
-
-          return;
-        }
-
-      /* baselink */
-      estimator_->setOrientation(Frame::BASELINK, GROUND_TRUTH, rot);
-      estimator_->setAngularVel(Frame::BASELINK, GROUND_TRUTH, omega);
-
-      /* cog */
-      tf::Transform c2b_tf;
-      tf::transformKDLToTF(robot_model_->getCog2Baselink<KDL::Frame>(), c2b_tf);
-      tf::Matrix3x3 rot_c = rot * c2b_tf.getBasis().inverse();
-      tf::Vector3 omega_c = c2b_tf.getBasis() * omega;
-      estimator_->setOrientation(Frame::COG, GROUND_TRUTH, rot_c);
-      estimator_->setAngularVel(Frame::COG, GROUND_TRUTH, omega_c);
-
-      /* pos and vel */
-      setGroundTruthPosVel(pos, vel, rot, omega);
-    }
-
-    void rosParamInit()
-    {
-      getParam<double>("pos_noise_sigma", pos_noise_sigma_, 0.001 );
-      getParam<double>("acc_bias_noise_sigma", acc_bias_noise_sigma_, 0.0);
-      getParam<double>("sample_freq", sample_freq_, 100.0);
-      getParam<double>("cutoff_pos_freq", cutoff_pos_freq_, 20.0);
-      getParam<double>("cutoff_vel_freq", cutoff_vel_freq_, 20.0);
-    }
-
-    void init(tf::Vector3 init_pos)
-    {
-      /* set ground truth */
-      estimator_->setStateStatus(State::X_BASE, GROUND_TRUTH, true);
-      estimator_->setStateStatus(State::Y_BASE, GROUND_TRUTH, true);
-      estimator_->setStateStatus(State::Z_BASE, GROUND_TRUTH, true);
-      estimator_->setStateStatus(State::Base::Rot, GROUND_TRUTH, true);
-      estimator_->setStateStatus(State::CoG::Rot, GROUND_TRUTH, true);
-
-      if(estimate_mode_ & (1 << aerial_robot_estimation::EXPERIMENT_ESTIMATE))
-        {
-          estimator_->setStateStatus(State::X_BASE, aerial_robot_estimation::EXPERIMENT_ESTIMATE, true);
-          estimator_->setStateStatus(State::Y_BASE, aerial_robot_estimation::EXPERIMENT_ESTIMATE, true);
-          estimator_->setStateStatus(State::Z_BASE, aerial_robot_estimation::EXPERIMENT_ESTIMATE, true);
-
-          for(auto& fuser : estimator_->getFuser(aerial_robot_estimation::EXPERIMENT_ESTIMATE))
-            {
-              string plugin_name = fuser.first;
-              boost::shared_ptr<kf_plugin::KalmanFilter> kf = fuser.second;
-              int id = kf->getId();
-
-              /* x, y, z */
-              if(plugin_name == "kalman_filter/kf_pos_vel_acc")
-                {
-                  if(id < (1 << State::TOTAL_NUM))
-                      kf->setInitState(init_pos[id >> (State::X_BASE + 1)], 0);
-                }
-
-              if(plugin_name == "aerial_robot_base/kf_xy_roll_pitch_bias")
-                {
-                  if((id & (1 << State::X_BASE)) && (id & (1 << State::Y_BASE)))
-                    {
-                      VectorXd init_state(6);
-                      init_state << init_pos[0], 0, init_pos[1], 0, 0, 0;
-                      kf->setInitState(init_state);
-                    }
-                }
-              kf->setMeasureFlag();
-            }
+          /* correction */
+          Eigen::VectorXd measure_sigma(1);
+          measure_sigma << pos_noise_sigma_;
+          Eigen::VectorXd meas(1); meas << raw_pose_.p[index];
+          std::vector<double> params = {kf_plugin::POS};
+          kf->correction(meas, measure_sigma, -1, params); //no time sync
         }
     }
+  }
 
-    void estimateProcess(ros::Time stamp)
-    {
-      if(sensor_status_ == Status::INVALID) return;
+  void Mocap::setState() {
 
-      /* start experiment estimation */
-      if(!(estimate_mode_ & (1 << aerial_robot_estimation::EXPERIMENT_ESTIMATE))) return;
+    // EXPERIMENT_ESTIMATE mode
+    // only update the wx_b vector (the vector only related to yaw)
+    // pos is updated in IMU plugin
+    KDL::Frame c2b_tf = robot_model_->getCog2Baselink<KDL::Frame>();
+    KDL::Vector wx_b = pose_.M.Inverse().UnitX();
+    KDL::Vector wx_c = c2b_tf.M * wx_b;
+    estimator_->setBaseOrientationWxB(EXPERIMENT_ESTIMATE, wx_b);
+    estimator_->setCogOrientationWxB(EXPERIMENT_ESTIMATE, wx_c);
 
-      for(auto& fuser : estimator_->getFuser(aerial_robot_estimation::EXPERIMENT_ESTIMATE))
-        {
-          string plugin_name = fuser.first;
-          boost::shared_ptr<kf_plugin::KalmanFilter> kf = fuser.second;
-          int id = kf->getId();
 
-          /* x_w, y_w, z_w */
-          if(id < (1 << State::TOTAL_NUM))
-            {
-              if(plugin_name == "kalman_filter/kf_pos_vel_acc")
-                {
-                  int index = id >> (State::X_BASE + 1);
+    // GROUND TRUTH mode
+    // skip if there is a true plugin handle the groundtruth odom
+    if(estimator_->hasGroundTruthOdom()) return;
 
-                  if(kf->getStateDim() == 2 && acc_bias_noise_sigma_ > 0)
-                    {
-                      if(kf->getPredictionNoiseCovariance().rows() == 0)
-                        return;
+    // rotation
+    // only trust wx_b and wx_c;
+    KDL::Rotation rot_b = estimator_->getBaseOrientation(EXPERIMENT_ESTIMATE);
+    estimator_->setBaseOrientation(GROUND_TRUTH, rot_b);
+    KDL::Rotation rot_c = estimator_->getCogOrientation(EXPERIMENT_ESTIMATE);
+    estimator_->setCogOrientation(GROUND_TRUTH, rot_c);
 
-                      VectorXd input_noise_sigma(2);
-                      input_noise_sigma << kf->getPredictionNoiseCovariance()(0, 0),
-                        acc_bias_noise_sigma_;
+    // position & vel
+    // baselink
+    estimator_->setBasePos(GROUND_TRUTH, pose_.p);
+    estimator_->setBaseVel(GROUND_TRUTH, twist_.vel);
+    // cog
+    /* pos_cog = pos_base + rot_b * pos_base2cog */
+    KDL::Vector b2c_pos = c2b_tf.Inverse().p;
+    KDL::Vector pos_c = pose_.p + rot_b * b2c_pos;
+    estimator_->setCogPos(GROUND_TRUTH, pos_c);
+    /* vel_cog = vel_base + rob_b * (w x pos_base2cog) */
+    KDL::Vector vel_c = twist_.vel + rot_b * (twist_.rot * b2c_pos);
+    estimator_->setCogVel(GROUND_TRUTH, vel_c);
+  }
 
-                      kf->setPredictionNoiseCovariance(input_noise_sigma);
-                      kf->setInitState(raw_pos_[index], 0);
-                    }
+  void Mocap::publish() {
 
-                  /* correction */
-                  VectorXd measure_sigma(1);
-                  measure_sigma << pos_noise_sigma_;
-                  VectorXd meas(1); meas << raw_pos_[index];
-                  vector<double> params = {kf_plugin::POS};
-                  kf->correction(meas, measure_sigma, -1, params); //no time sync
-                  // VectorXd state = kf->getEstimateState();
-                  // estimator_->setState(index + 3, aerial_robot_estimation::EXPERIMENT_ESTIMATE, 0, state(0));
-                  // estimator_->setState(index + 3, aerial_robot_estimation::EXPERIMENT_ESTIMATE, 1, state(1));
-                }
+    states_.header.stamp = time_stamp_;
 
-              if(plugin_name == "aerial_robot_base/kf_xy_roll_pitch_bias")
-                {
-                  if((id & (1 << State::X_BASE)) && (id & (1 << State::Y_BASE)))
-                    {
-                      /* correction */
-                      VectorXd measure_sigma(2);
-                      measure_sigma << pos_noise_sigma_, pos_noise_sigma_;
-                      VectorXd meas(2); meas <<  raw_pos_[0], raw_pos_[1];
-                      vector<double> params = {kf_plugin::POS};
-                      /* time sync and delay process: get from kf time stamp */
-                      kf->correction(meas, measure_sigma, -1, params); // no time sync
-
-                      VectorXd state = kf->getEstimateState();
-                      /* temp */
-                      estimator_->setState(State::X_BASE, aerial_robot_estimation::EXPERIMENT_ESTIMATE, 0, state(0));
-                      estimator_->setState(State::X_BASE, aerial_robot_estimation::EXPERIMENT_ESTIMATE, 1, state(1));
-                      estimator_->setState(State::Y_BASE, aerial_robot_estimation::EXPERIMENT_ESTIMATE, 0, state(2));
-                      estimator_->setState(State::Y_BASE, aerial_robot_estimation::EXPERIMENT_ESTIMATE, 1, state(3));
-                    }
-                }
-            }
-        }
+    for(int i = 0; i < 6; i++) {
+      if(i < 3) {
+        states_.states[i].state[0].pos = raw_pose_.p[i];
+        states_.states[i].state[0].vel = raw_twist_.vel[i];
+        states_.states[i].state[1].pos = pose_.p[i];
+        states_.states[i].state[1].vel = twist_.vel[i];
+      } else {
+        states_.states[i].state[0].vel = raw_twist_.rot[i - 3];
+        states_.states[i].state[1].vel = twist_.rot[i - 3];
+      }
     }
-  };
+
+    state_pub_->publish(states_);
+  }
+
+  void Mocap::rosParamInit() {
+    getParam<double>("pos_noise_sigma", pos_noise_sigma_, 0.001 );
+    getParam<double>("acc_bias_noise_sigma", acc_bias_noise_sigma_, 0.0);
+
+    getParam<double>("sample_freq", sample_freq_, 100.0);
+    getParam<double>("cutoff_pos_freq", cutoff_pos_freq_, 20.0);
+    getParam<double>("cutoff_vel_freq", cutoff_vel_freq_, 20.0);
+  }
+
 };
 
 /* plugin registration */
-#include <pluginlib/class_list_macros.h>
+#include <pluginlib/class_list_macros.hpp>
 PLUGINLIB_EXPORT_CLASS(sensor_plugin::Mocap, sensor_plugin::SensorBase);
 
 

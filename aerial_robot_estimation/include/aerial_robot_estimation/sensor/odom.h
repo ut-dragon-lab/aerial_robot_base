@@ -15,7 +15,7 @@
  *     copyright notice, this list of conditions and the following
  *     disclaimer in the documentation and/o2r other materials provided
  *     with the distribution.
- *   * Neither the name of the JSK Lab nor the names of its
+ *   * Neither the name of the DRAGON Lab nor the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -35,84 +35,77 @@
 
 #pragma once
 
+/* basic plugin */
 #include <aerial_robot_estimation/sensor/base_plugin.h>
-#include <geometry_msgs/Vector3Stamped.h>
-#include <geometry_msgs/TransformStamped.h>
 #include <kalman_filter/kf_pos_vel_acc_plugin.h>
-#include <nav_msgs/Odometry.h>
-#include <sensor_msgs/JointState.h>
-#include <spinal/ServoControlCmd.h>
-#include <std_msgs/Empty.h>
+
+/* ros */
 #include <tf2_ros/static_transform_broadcaster.h>
 
+/* ros messages */
+#include <nav_msgs/msg/odometry.h>
 
-namespace sensor_plugin
-{
+namespace sensor_plugin {
   enum {ONLY_POS_MODE = 0, ONLY_VEL_MODE = 1, POS_VEL_MODE = 2,};
 
-  class Odometry :public sensor_plugin::SensorBase
-  {
+  class Odometry :public sensor_plugin::SensorBase {
   public:
 
     Odometry();
     ~Odometry(){}
 
-    void initialize(ros::NodeHandle nh,
-                    boost::shared_ptr<aerial_robot_model::RobotModel> robot_model,
-                    boost::shared_ptr<aerial_robot_estimation::StateEstimator> estimator,
+    void initialize(rclcpp::Node::SharedPtr node,
+                    RobotModelPtr robot_model,
+                    EstimatorPtr estimator,
                     string sensor_name, int index) override;
 
-    inline const bool odomPosMode()
-    {
-      if(fusion_mode_ != ONLY_VEL_MODE) return true;
-      else return false;
-    }
 
-    bool reset();
+    const bool odomPosMode();
 
-    const tf::Transform& getRawBaselinkTF() const { return baselink_tf_; }
+    const KDL::Frame& getBasePose() const { return base_pose_; }
 
   private:
     /* ros */
-    ros::Subscriber vo_sub_;
-    ros::Publisher vo_servo_pub_;
-    ros::Subscriber vo_servo_debug_sub_;
-    ros::Timer  servo_control_timer_;
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
+    std::shared_ptr<tf2_ros::TransformBroadcaster> br_;
 
-    /* ros param */
+    /* reconfigurable varaible */
     double throttle_rate_;
     double level_pos_noise_sigma_;
     double z_pos_noise_sigma_;
     double vel_noise_sigma_;
     double vel_outlier_thresh_;
-    double downwards_vo_min_height_;
-    double downwards_vo_max_height_;
     int fusion_mode_;
-    bool vio_mode_; // visual + inertial mode
-    bool z_vel_mode_;
     bool local_vel_mode_;
-    bool outdoor_no_vel_time_sync_; // very special flag for stereo cam such as zed mini, which has tricky behavier in outdoor mode
-    /* heuristic sepecial flag for fusion */
-    bool outdoor_;
-    bool z_no_delay_;
 
-    tf::Transform world_offset_tf_; // ^{w}H_{w_vo}: transform from true world frame to the vo/vio world frame
-    tf::Transform baselink_tf_; // ^{w}H_{b}: transform from true world frame to the baselink frame, but is estimated by vo/vio
-    tf::Vector3 raw_global_vel_;
+    KDL::Frame origin_offset_; // ^{w}H_{o}: transform between two origins
+    KDL::Frame base_pose_; // ^{w}H_{b} estimated by odometry sensor
+    KDL::Twist base_twist_;
+    KDL::Frame sensor_pose_, prev_sensor_pose_;
+    KDL::Twist sensor_twist_, prev_sensor_twist_;
 
-    tf::Transform prev_sensor_tf_;
-    tf::Vector3 b_omega_;
-    tf::Matrix3x3 b_rot_;
+    std::string odom_origin_frame_;
 
-    double reference_timestamp_;
-    aerial_robot_msgs::States vo_state_;
+    double ref_time_stamp_;
+    aerial_robot_msgs::msg::States states_; /* for debug */
 
-    tf2_ros::StaticTransformBroadcaster static_broadcaster_; // publish the transfrom between the work and vo frame
+    bool checkStatus();
+    bool calcuateOriginOffset();
+    void calculateBasePose();
+    void calculateBaseVelocity();
+    bool isMsgNan(nav_msgs::msg::Odometry msg);
+    void activateFuser() override;
+    void estimateProcess() override;
 
-    void rosParamInit();
-    void servoControl(const ros::TimerEvent & e);
-    void estimateProcess();
-    void odomCallback(const nav_msgs::Odometry::ConstPtr & vo_msg);
+    void preProcessState() override;
+    void fuse() override;
+    void setState() override;
+    void print();
+
+    void publish() override;
+    void tfBroadcast();
+    void rosParamInit() override;
+    void odomCallback(const nav_msgs::msg::Odometry::SharedPtr vo_msg);
   };
 };
 

@@ -2,7 +2,7 @@
 /*********************************************************************
  * Software License Agreement (BSD License)
  *
- *  Copyright (c) 2017, JSK Lab
+ *  Copyright (c) 2026, DRAGON Lab
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -15,7 +15,7 @@
  *     copyright notice, this list of conditions and the following
  *     disclaimer in the documentation and/o2r other materials provided
  *     with the distribution.
- *   * Neither the name of the JSK Lab nor the names of its
+ *   * Neither the name of the DRAGON Lab nor the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -33,26 +33,46 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-/* base class */
-#include <aerial_robot_estimation/kf/baro_bias_plugin.h>
+#pragma once
 
-namespace kf_plugin
-{
-  void KalmanFilterBaroBias::initialize(string name, int id)
-  {
-    state_dim_ = 1;
+/* basic plugin */
+#include <aerial_robot_estimation/sensor/base_plugin.h>
 
-    const_state_transition_model_ = MatrixXd::Identity(1, 1);
-    const_control_input_model_ = MatrixXd::Identity(1, 1);
-    const_observation_model_ = MatrixXd::Identity(1, 1);
+/* ros messages */
+#include <nav_msgs/msg/odometry.hpp>
+#include <tf2_eigen_kdl/tf2_eigen_kdl.hpp>
 
-    state_names_ = {"bias"};
-    input_names_ = {"d_bias"};
-    measure_names_ = {"bias"};
+namespace sensor_plugin {
+  class GroundTruth :public sensor_plugin::SensorBase {
+  public:
+    GroundTruth();
+    ~GroundTruth() {}
 
-    KalmanFilter::initialize(name, id);
-  }
+    virtual void initialize(rclcpp::Node::SharedPtr node,
+                            RobotModelPtr robot_model,
+                            EstimatorPtr estimator,
+                            string sensor_name, int index) override;
+
+  protected:
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr msg_sub_;
+
+    KDL::Frame pose_;
+    KDL::Twist twist_;
+
+    IirFilter lpf_omega_;
+    double sample_freq_;
+    double cutoff_freq_;
+
+    virtual void odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg);
+
+    void setStateStatus();
+    void estimateProcess() override;
+
+    void rosParamInit() override;
+  };
 };
 
-#include <pluginlib/class_list_macros.h>
-PLUGINLIB_EXPORT_CLASS(kf_plugin::KalmanFilterBaroBias, kf_plugin::KalmanFilter);
+
+
+
+

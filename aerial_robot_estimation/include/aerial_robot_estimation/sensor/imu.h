@@ -2,7 +2,7 @@
 /*********************************************************************
  * Software License Agreement (BSD License)
  *
- *  Copyright (c) 2017, JSK Lab
+ *  Copyright (c) 2026, DRAGON Lab
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -15,7 +15,7 @@
  *     copyright notice, this list of conditions and the following
  *     disclaimer in the documentation and/o2r other materials provided
  *     with the distribution.
- *   * Neither the name of the JSK Lab nor the names of its
+ *   * Neither the name of the DRAGON Lab nor the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -35,67 +35,66 @@
 
 #pragma once
 
-#include <aerial_robot_msgs/Acc.h>
+/* basic plugin */
 #include <aerial_robot_estimation/sensor/base_plugin.h>
-#include <geometry_msgs/Vector3.h>
-#include <sensor_msgs/Imu.h>
-#include <spinal/Imu.h>
+
+/* ros messages */
+#include <aerial_robot_msgs/msg/states.hpp>
+#include <sensor_msgs/msg/imu.hpp>
+#include <spinal/msg/imu.hpp>
 
 
-using namespace Eigen;
-using namespace std;
-
-namespace sensor_plugin
-{
-  class Imu :public sensor_plugin::SensorBase
-  {
+namespace sensor_plugin {
+  class Imu :public sensor_plugin::SensorBase{
   public:
-    virtual void initialize(ros::NodeHandle nh,
-                            boost::shared_ptr<aerial_robot_model::RobotModel> robot_model,
-                            boost::shared_ptr<aerial_robot_estimation::StateEstimator> estimator,
+    virtual void initialize(rclcpp::Node::SharedPtr node,
+                            RobotModelPtr robot_model,
+                            EstimatorPtr estimator,
                             string sensor_name, int index) override;
 
     ~Imu() {}
     Imu();
 
-    inline ros::Time getStamp(){return imu_stamp_;}
-
   protected:
-    ros::Publisher  acc_pub_;
-    ros::Publisher  imu_pub_;
     rclcpp::Subscription<spinal::msg::Imu>::SharedPtr imu_sub_;
+    rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr  ros_imu_pub_;
+    rclcpp::Publisher<aerial_robot_msgs::msg::States>::SharedPtr  state_pub_;
 
-    int calib_count_;
-    double acc_scale_, gyro_scale_, mag_scale_; /* the scale of sensor value */
-    double level_acc_noise_sigma_, z_acc_noise_sigma_, level_acc_bias_noise_sigma_, z_acc_bias_noise_sigma_, angle_bias_noise_sigma_; /* sigma for kf */
-
-    /* sensor internal */
-    double sensor_dt_;
-
-    /* imu */
-    tf::Vector3 omega_; /* the omega both of body frame */
-    tf::Vector3 mag_; /* the magnetometer of body frame */
-    tf::Vector3 acc_b_; /* the acceleration in baselink frame */
-    tf::Matrix3x3 raw_rot_; /* the raw rotation matrix from IMU */
-    /* acc */
-    std::array<tf::Vector3, 2> acc_w_; /* the acceleration in world frame, for estimate_mode and expriment_mode */
-    std::array<tf::Vector3, 2> acc_non_bias_w_; /* the acceleration without bias in world frame for estimate_mode and expriment_mode */
-    /* acc bias */
-    tf::Vector3 acc_bias_b_; /* the acceleration bias in baselink frame, only use z axis  */
-    std::array<tf::Vector3, 2> acc_bias_w_; /* the acceleration bias in world frame for estimate_mode and expriment_mode*/
-
-    aerial_robot_msgs::States state_; /* for debug */
-
+    int calib_count_, calib_max_count_;
     double calib_time_;
+    double dt_; /* sensor internal */
 
-    ros::Time imu_stamp_;
 
+    /* reconfigurable varaible */
+    double level_acc_noise_sigma_, z_acc_noise_sigma_;
+    double level_acc_bias_noise_sigma_, z_acc_bias_noise_sigma_; /* sigma for kf */
 
-    virtual void imuCallback(const spinal::msg::Imu::SharedPtr imu_msg);
-    virtual void estimateProcess();
-    void publishAccData();
-    void publishRosImuData();
-    void rosParamInit();
+    KDL::Vector omega_; /* the omega both of body frame */
+    KDL::Vector mag_; /* the magnetometer of body frame */
+    KDL::Vector acc_b_; /* the acceleration in baselink frame */
+    KDL::Rotation raw_rot_; /* the raw rotation matrix from IMU */
+    /* acc */
+    std::array<KDL::Vector, 2> acc_w_; /* the acceleration in world frame, for estimate_mode and expriment_mode */
+    std::array<KDL::Vector, 2> acc_non_bias_w_; /* the acceleration without bias in world frame for estimate_mode and expriment_mode */
+    /* acc bias */
+    KDL::Vector acc_bias_b_; /* the acceleration bias in baselink frame, only use z axis  */
+    std::array<KDL::Vector, 2> acc_bias_w_; /* the acceleration bias in world frame for estimate_mode and expriment_mode*/
+
+    aerial_robot_msgs::msg::States states_; /* for debug */
+
+    virtual void imuCallback(const spinal::msg::Imu::SharedPtr msg);
+    virtual void estimateProcess() override;
+
+    void updateAcc();
+    bool calibrateAcc();
+    void setRotationalStates();
+    void setTranslationalStates();
+
+    void activateFuser() override;
+    void fuse() override;
+
+    void publish() override;
+    void rosParamInit() override;
   };
 };
 

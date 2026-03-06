@@ -15,7 +15,7 @@
  *     copyright notice, this list of conditions and the following
  *     disclaimer in the documentation and/o2r other materials provided
  *     with the distribution.
- *   * Neither the name of the JSK Lab nor the names of its
+ *   * Neither the name of the DRAGON Lab nor the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -63,9 +63,12 @@ namespace Status {
 namespace sensor_plugin {
   class SensorBase {
   public:
-    SensorBase(): sensor_hz_(0), get_sensor_rel_tf_(false), logger_(node_->get_logger()) {
+    SensorBase(): sensor_hz_(0),
+                  prev_time_stamp_(-1),
+                  get_sensor_rel_pose_(false),
+                  logger_(node_->get_logger()) {
       sensor_status_ = Status::INACTIVE;
-      sensor_rel_tf_ == KDL::Frame::Identity();
+      sensor_rel_pose_ == KDL::Frame::Identity();
     }
 
     virtual void initialize(rclcpp::Node::SharedPtr node,
@@ -116,7 +119,7 @@ namespace sensor_plugin {
       getParam<bool>("param_verbose", param_verbose_, false);
       getParam<bool>("debug_verbose", debug_verbose_, false);
       getParam<std::string>("sensor_frame", sensor_frame_, "sensor_frame");
-      getParam<bool>("sensor_tf_variable_flag", sensor_tf_variable_flag_, false);
+      getParam<bool>("sensor_pose_vary_flag", sensor_pose_vary_flag_, false);
       getParam<double>("reset_duration", reset_duration_, 1.0);
       getParam<double>("health_timeout", health_timeout_, 0.5);
       getParam<int>("unhealth_level", unhealth_level_, 0);
@@ -188,7 +191,7 @@ namespace sensor_plugin {
     RobotModelPtr robot_model_;
     EstimatorPtr estimator_;
 
-    /* variable */
+    /* reconfigurable varaible */
     int estimate_mode_;
 
     bool param_verbose_;
@@ -197,12 +200,12 @@ namespace sensor_plugin {
     string sensor_name_;
     int sensor_index_;
 
-    bool get_sensor_rel_tf_;
-    bool sensor_tf_variable_flag_;
+    bool get_sensor_rel_pose_;
+    bool sensor_pose_vary_flag_;
 
     string sensor_frame_;
 
-    rclcpp::Time time_stamp_;
+    rclcpp::Time time_stamp_, prev_time_stamp_;
     bool time_sync_;
     double delay_;
     double curr_timestamp_;
@@ -212,7 +215,7 @@ namespace sensor_plugin {
     std::vector<int> experiment_indices_; // the fuser_experiment indices
 
     /* the transformation between sensor frame and baselink frame */
-    KDL::Frame sensor_rel_tf_;
+    KDL::Frame sensor_rel_pose_;
 
     /* status */
     int sensor_status_;
@@ -230,11 +233,19 @@ namespace sensor_plugin {
     int unhealth_level_;
 
 
-    inline const bool getFuserActivate(uint8_t mode) const {
+    inline const bool isModeActivate(uint8_t mode) const {
       return (estimate_mode_ & (1 << mode));
     }
 
-    virtual void estimateProcess() {};
+    virtual void estimateProcess() {}
+    virtual void activateFuser() {}
+    virtual void fuse() {}
+    virtual void preProcessState() {}
+    virtual void setState() {}
+
+    virtual void publish() {}
+    virtual void rosParamInit() {}
+
 
     /* check whether we get sensor data */
     void healthCheck() {
@@ -291,13 +302,13 @@ namespace sensor_plugin {
       health_stamp_[chan] = st;
     }
 
-    inline const KDL::Frame& getBaseLink2SensorTransform() const {
-      return sensor_rel_tf_;
+    inline const KDL::Frame& getBase2SensorTF() const {
+      return sensor_rel_pose_;
     }
 
-    bool updateBaseLink2SensorTransform() {
+    bool updateBase2SensorTF() {
       /* get transform from baselink to sensor frame */
-      if(!sensor_tf_variable_flag_ && get_sensor_rel_tf_) return true;
+      if(!sensor_pose_vary_flag_ && get_sensor_rel_pose_) return true;
 
       /*
         for joint or servo system, this should be processed every time,
@@ -306,7 +317,7 @@ namespace sensor_plugin {
       const auto segments_tf =  robot_model_->getSegmentsTf();
 
       if(segments_tf.empty()) {
-        if(get_sensor_rel_tf_) {
+        if(get_sensor_rel_pose_) {
           RCLCPP_ERROR(logger_, "The segment tf is empty after init phase");
         }
 
@@ -321,7 +332,7 @@ namespace sensor_plugin {
       }
 
       try {
-        sensor_rel_tf_
+        sensor_rel_pose_
           = segments_tf.at(robot_model_->getBaselinkName()).Inverse()
           * segments_tf.at(sensor_frame_);
       } catch (...) {
@@ -329,19 +340,19 @@ namespace sensor_plugin {
                             << " in spite of segments_tf.find is true");
       }
 
-      double y, p, r; sensor_rel_tf_.M.GetRPY(r, p, y);
-      if(!sensor_tf_variable_flag_) {
+      double y, p, r; sensor_rel_pose_.M.GetRPY(r, p, y);
+      if(!sensor_pose_vary_flag_) {
         RCLCPP_INFO_STREAM(logger_, "Get TF from" <<
                            robot_model_->getBaselinkName() << " to " <<
                            sensor_frame_ << " pos: [" <<
-                           sensor_rel_tf_.p.x() << ", " <<
-                           sensor_rel_tf_.p.y() << ", " <<
-                           sensor_rel_tf_.p.z() << "], rot: [" <<
+                           sensor_rel_pose_.p.x() << ", " <<
+                           sensor_rel_pose_.p.y() << ", " <<
+                           sensor_rel_pose_.p.z() << "], rot: [" <<
                            r << ", " << p << ", " << y << "]");
 
       }
 
-      get_sensor_rel_tf_ = true;
+      get_sensor_rel_pose_ = true;
       return true;
     }
 

@@ -15,7 +15,7 @@
  *     copyright notice, this list of conditions and the following
  *     disclaimer in the documentation and/o2r other materials provided
  *     with the distribution.
- *   * Neither the name of the JSK Lab nor the names of its
+ *   * Neither the name of the DRAGON Lab nor the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -51,9 +51,6 @@ StateEstimator::StateEstimator()
     fusion_loader_("kalman_filter", "kf_plugin::KalmanFilter"),
     sensor_loader_("aerial_robot_estimation", "sensor_plugin::SensorBase")
 {
-  fuser_[0].resize(0);
-  fuser_[1].resize(0);
-
   has_refined_yaw_estimate_[EGOMOTION_ESTIMATE] = false;
   has_refined_yaw_estimate_[EXPERIMENT_ESTIMATE] = false;
 
@@ -143,15 +140,15 @@ void StateEstimator::load() {
       return;
     }
 
+    int cnt = 0;
     for (auto &fuser_name : fuser_list) {
       for (auto &name : fusion_loader_.getDeclaredClasses()) {
         if(!pattern_match(fuser_name, name)) continue;
 
         std::stringstream fuser_no;
-        fuser_no << fuser_[i].size() + 1;
+        fuser_no << cnt + 1;
 
         int fuser_id;
-        string fuser_label;
 
         std::string fuser_id_param
           = fuse_prefix + "fuser_" + mode_prefix + "_id" + fuser_no.str();
@@ -173,7 +170,9 @@ void StateEstimator::load() {
           std::shared_ptr<kf_plugin::KalmanFilter> plugin_ptr
             = fusion_loader_.createSharedInstance(name);
           plugin_ptr->initialize(fuser_name, fuser_id);
-          fuser_[i].push_back(make_pair(name, plugin_ptr));
+          fuser_maps_.at(i).insert(make_pair(name, plugin_ptr));
+
+          cnt ++;
         } catch (const pluginlib::PluginlibException& ex) {
           RCLCPP_ERROR(LOGGER,
                        "Failed to load kf plugin '%s': %s",
@@ -348,6 +347,21 @@ void StateEstimator::setBasePos(int estimate_mode, KDL::Vector pos) {
   base_pose_.at(estimate_mode).p = pos;
 }
 
+void StateEstimator::setBasePosX(int estimate_mode, double pos) {
+  std::lock_guard<std::mutex> lock(state_mutex_);
+  base_pose_.at(estimate_mode).p.x(pos);
+}
+
+void StateEstimator::setBasePosY(int estimate_mode, double pos) {
+  std::lock_guard<std::mutex> lock(state_mutex_);
+  base_pose_.at(estimate_mode).p.y(pos);
+}
+
+void StateEstimator::setBasePosZ(int estimate_mode, double pos) {
+  std::lock_guard<std::mutex> lock(state_mutex_);
+  base_pose_.at(estimate_mode).p.z(pos);
+}
+
 const KDL::Vector StateEstimator::getBaseVel(int estimate_mode) {
   std::lock_guard<std::mutex> lock(state_mutex_);
   return base_twist_.at(estimate_mode).vel;
@@ -356,6 +370,31 @@ const KDL::Vector StateEstimator::getBaseVel(int estimate_mode) {
 void StateEstimator::setBaseVel(int estimate_mode, KDL::Vector vel) {
   std::lock_guard<std::mutex> lock(state_mutex_);
   base_twist_.at(estimate_mode).vel = vel;
+}
+
+void StateEstimator::setBaseVelX(int estimate_mode, double vel) {
+  std::lock_guard<std::mutex> lock(state_mutex_);
+  base_twist_.at(estimate_mode).vel.x(vel);
+}
+
+void StateEstimator::setBaseVelY(int estimate_mode, double vel) {
+  std::lock_guard<std::mutex> lock(state_mutex_);
+  base_twist_.at(estimate_mode).vel.y(vel);
+}
+
+void StateEstimator::setBaseVelZ(int estimate_mode, double vel) {
+  std::lock_guard<std::mutex> lock(state_mutex_);
+  base_twist_.at(estimate_mode).vel.z(vel);
+}
+
+const KDL::Vector StateEstimator::getBaseAcc(int estimate_mode) {
+  std::lock_guard<std::mutex> lock(state_mutex_);
+  return base_acc_.at(estimate_mode);
+}
+
+void StateEstimator::setBaseAcc(int estimate_mode, KDL::Vector acc) {
+  std::lock_guard<std::mutex> lock(state_mutex_);
+  base_acc_.at(estimate_mode) = acc;
 }
 
 const KDL::Rotation StateEstimator::getBaseOrientation(int estimate_mode) {
@@ -426,6 +465,16 @@ void StateEstimator::setCogVel(int estimate_mode, KDL::Vector vel) {
   cog_twist_.at(estimate_mode).vel = vel;
 }
 
+const KDL::Vector StateEstimator::getCogAcc(int estimate_mode) {
+  std::lock_guard<std::mutex> lock(state_mutex_);
+  return cog_acc_.at(estimate_mode);
+}
+
+void StateEstimator::setCogAcc(int estimate_mode, KDL::Vector acc) {
+  std::lock_guard<std::mutex> lock(state_mutex_);
+  cog_acc_.at(estimate_mode) = acc;
+}
+
 const KDL::Rotation StateEstimator::getCogOrientation(int estimate_mode) {
   std::lock_guard<std::mutex> lock(state_mutex_);
   return cog_pose_.at(estimate_mode).M;
@@ -484,6 +533,38 @@ void StateEstimator::setBaseOrientationWzB(int estimate_mode, KDL::Vector v) {
   rot_inv.UnitZ(wz_b);
 
   setBaseOrientation(estimate_mode, rot_inv.Inverse());
+}
+
+void StateEstimator::setCogOrientationWxB(int estimate_mode, KDL::Vector v) {
+  KDL::Vector wx_c = v;
+  wx_c.Normalize();
+
+  KDL::Rotation rot_inv = getCogOrientation(estimate_mode).Inverse();
+  KDL::Vector wz_c = rot_inv.UnitZ();
+  KDL::Vector wy_c = wz_c * wx_c;
+  wy_c.Normalize();
+
+  rot_inv.UnitX(wx_c);
+  rot_inv.UnitY(wy_c);
+  rot_inv.UnitZ(wz_c);
+
+  setCogOrientation(estimate_mode, rot_inv.Inverse());
+}
+
+void StateEstimator::setCogOrientationWzB(int estimate_mode, KDL::Vector v) {
+  KDL::Vector wz_c = v;
+  wz_c.Normalize();
+
+  KDL::Rotation rot_inv = getCogOrientation(estimate_mode).Inverse();
+  KDL::Vector wx_c = rot_inv.UnitX();
+  KDL::Vector wy_c = wz_c * wx_c;
+  wy_c.Normalize();
+
+  rot_inv.UnitX(wx_c);
+  rot_inv.UnitY(wy_c);
+  rot_inv.UnitZ(wz_c);
+
+  setCogOrientation(estimate_mode, rot_inv.Inverse());
 }
 
 void StateEstimator::updateBaseQueue(const double timestamp, const KDL::Rotation r_ee, const KDL::Rotation r_ex, const KDL::Vector omega) {
@@ -587,9 +668,8 @@ const double StateEstimator::getImuLatestTimeStamp() {
   return timestamp_qu_.back();
 }
 
-const SensorFuser& StateEstimator::getFuser(int mode) {
-  assert(mode >= 0 && mode < 2);
-  return fuser_[mode];
+const FuserMap& StateEstimator::getFuserMap(int mode) {
+  return fuser_maps_.at(mode);
 }
 
 /* set unhealth level */

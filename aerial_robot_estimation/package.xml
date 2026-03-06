@@ -17,9 +17,10 @@
   <depend>kalman_filter</depend>
   <depend>nav_msgs</depend>
   <depend>pluginlib</depend>
+  <depend>rclcpp</depend>
   <depend>sensor_msgs</depend>
   <depend>spinal</depend>
-  <depend>rclcpp</depend>
+  <depend>tf2_eigen_kdl</depend>
 
   <export>
     <build_type>ament_cmake</build_type>
