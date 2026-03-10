@@ -210,7 +210,7 @@ namespace aerial_robot_estimation {
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr baselink_odom_pub_, cog_odom_pub_;
 
     /* timer */
-    rclcpp::TimerBase::SharedPtr state_pub_timer_;
+    rclcpp::TimerBase::SharedPtr state_process_timer_;
 
     /* tf broadcaster */
     std::shared_ptr<tf2_ros::TransformBroadcaster> br_;
@@ -270,6 +270,8 @@ namespace aerial_robot_estimation {
     /* time */
     rclcpp::Time prev_pub_stamp_;
 
+    void process();
+    void sensorHealthCheck();
     void publish();
     void odomPublish(rclcpp::Time stamp);
     void tfBroadcast(rclcpp::Time stamp);

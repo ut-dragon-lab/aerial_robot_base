@@ -90,8 +90,8 @@ void StateEstimator::initialize(rclcpp::Node::SharedPtr node, std::shared_ptr<ae
   double rate;
   node_->get_parameter_or("state_pub_rate", rate, 100.0);
   auto period = std::chrono::duration<double>(1.0 / rate);
-  state_pub_timer_ = rclcpp::create_timer(node_, node_->get_clock(), period,
-                                          std::bind(&StateEstimator::publish, this));
+  state_process_timer_ = rclcpp::create_timer(node_, node_->get_clock(), period,
+                                          std::bind(&StateEstimator::process, this));
 }
 
 void StateEstimator::load() {
@@ -677,6 +677,23 @@ void StateEstimator::setUnhealthLevel(uint8_t unhealth_level) {
   if(unhealth_level > unhealth_level_) unhealth_level_ = unhealth_level;
 
   /* TODO: should write the solution for the unhealth sensor  */
+}
+
+void StateEstimator::process() {
+
+  /* check the heartbeat of each sensor */
+  sensorHealthCheck();
+
+  /* publish */
+  publish();
+}
+
+void StateEstimator::sensorHealthCheck() {
+
+  for(auto& sensor: sensors_) {
+    sensor->healthCheck();
+  }
+
 }
 
 void StateEstimator::publish() {

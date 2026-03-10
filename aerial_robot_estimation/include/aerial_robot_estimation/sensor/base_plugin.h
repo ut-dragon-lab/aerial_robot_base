@@ -123,16 +123,8 @@ namespace sensor_plugin {
       getParam<double>("reset_duration", reset_duration_, 1.0);
       getParam<double>("health_timeout", health_timeout_, 0.5);
       getParam<int>("unhealth_level", unhealth_level_, 0);
-      getParam<double>("health_check_rate", health_check_rate_, 0.0);
       getParam<bool>("time_sync", time_sync_, false);
       getParam<double>("delay", delay_, 0.0);
-
-      if (health_check_rate_ > 0) {
-        auto period = std::chrono::duration<double>(1.0 / health_check_rate_);
-        health_check_timer_
-          = rclcpp::create_timer(node_, node_->get_clock(), period,
-                                 std::bind(&SensorBase::healthCheck,this));
-      }
     }
 
     virtual ~SensorBase() {}
@@ -171,6 +163,25 @@ namespace sensor_plugin {
       }
     }
 
+    /* check whether we get sensor data */
+    void healthCheck() {
+      std::lock_guard<std::mutex> lock(health_check_mutex_);
+
+      /* this will call only once, no recovery */
+      for(int i = 0; i < health_.size(); i++)
+        {
+          double st = node_->get_clock()->now().seconds();
+          if(st - health_stamp_.at(i) > health_timeout_ && health_.at(i)) //  && !simulation_
+            {
+              RCLCPP_ERROR(logger_, "[chan%d]: can not get fresh sensor data for %f[sec]", i, st - health_stamp_.at(i));
+              /* TODO: the solution to unhealth should be more clever */
+              estimator_->setUnhealthLevel(unhealth_level_);
+
+              health_.at(i) = false;
+            }
+        }
+    }
+
   protected:
 
     /* node handle */
@@ -183,9 +194,6 @@ namespace sensor_plugin {
     /* service */
     rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr set_status_service_;
     rclcpp::Service<std_srvs::srv::Empty>::SharedPtr reset_service_;
-
-    /* timer */
-    rclcpp::TimerBase::SharedPtr health_check_timer_;
 
     /* instance */
     RobotModelPtr robot_model_;
@@ -228,7 +236,6 @@ namespace sensor_plugin {
     double reset_duration_;
     std::vector<bool> health_;
     std::vector<double> health_stamp_;
-    double health_check_rate_;
     double health_timeout_;
     int unhealth_level_;
 
@@ -246,25 +253,6 @@ namespace sensor_plugin {
     virtual void publish() {}
     virtual void rosParamInit() {}
 
-
-    /* check whether we get sensor data */
-    void healthCheck() {
-      std::lock_guard<std::mutex> lock(health_check_mutex_);
-
-      /* this will call only once, no recovery */
-      for(int i = 0; i < health_.size(); i++)
-        {
-          double st = node_->get_clock()->now().seconds();
-          if(st - health_stamp_.at(i) > health_timeout_ && health_.at(i)) //  && !simulation_
-            {
-              RCLCPP_ERROR(logger_, "[chan%d]: can not get fresh sensor data for %f[sec]", i, st - health_stamp_.at(i));
-              /* TODO: the solution to unhealth should be more clever */
-              estimator_->setUnhealthLevel(unhealth_level_);
-
-              health_.at(i) = false;
-            }
-        }
-    }
 
     bool resetCb(const std::shared_ptr<rmw_request_id_t> /*req_id*/,
                  const std::shared_ptr<std_srvs::srv::Empty::Request> req,
