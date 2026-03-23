@@ -21,7 +21,7 @@ set(msg_files
   "msg/Pid.msg"
   "msg/State.msg"
   "msg/States.msg"
-  "msg/Acc.msg"
+  "msg/PosVelAcc.msg"
   "msg/WrenchAllocationMatrix.msg"
 )
 

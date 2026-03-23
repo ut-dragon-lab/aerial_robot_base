@@ -2,7 +2,7 @@
 /*********************************************************************
  * Software License Agreement (BSD License)
  *
- *  Copyright (c) 2025, DRAGON Laboratory, The University of Tokyo
+ *  Copyright (c) 2026, DRAGON Lab
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -33,21 +33,46 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-#include <aerial_robot_model/servo_bridge.h>
+#pragma once
 
-int main(int argc, char* argv[]) {
-  {
-    rclcpp::init(argc, argv);
+/* basic plugin */
+#include <aerial_robot_estimation/sensor/base_plugin.h>
 
-    rclcpp::NodeOptions options;
-    options.allow_undeclared_parameters(true);
-    options.automatically_declare_parameters_from_overrides(true);
-    auto ros_node = std::make_shared<rclcpp::Node>("servo_bridge", options);
+/* ros messages */
+#include <nav_msgs/msg/odometry.hpp>
+#include <tf2_eigen_kdl/tf2_eigen_kdl.hpp>
 
-    auto bridge = std::make_shared<ServoBridge>(ros_node);
+namespace sensor_plugin {
+  class GroundTruth :public sensor_plugin::SensorBase {
+  public:
+    GroundTruth();
+    ~GroundTruth() {}
 
-    rclcpp::spin(ros_node);
-    rclcpp::shutdown();
-    return 0;
-  }
-}
+    virtual void initialize(rclcpp::Node::SharedPtr node,
+                            RobotModelPtr robot_model,
+                            EstimatorPtr estimator,
+                            string sensor_name, int index) override;
+
+  protected:
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr msg_sub_;
+
+    KDL::Frame pose_;
+    KDL::Twist twist_;
+
+    IirFilter lpf_omega_;
+    double sample_freq_;
+    double cutoff_freq_;
+
+    virtual void odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg);
+
+    void setStateStatus();
+    void estimateProcess() override;
+
+    void rosParamInit() override;
+  };
+};
+
+
+
+
+

@@ -50,6 +50,10 @@ AerialRobotCore::AerialRobotCore(rclcpp::Node::SharedPtr node) : node_(node) {
   robot_model_ros_ = std::make_shared<aerial_robot_model::RobotModelRos>(node_);
   auto robot_model = robot_model_ros_->getRobotModel();
 
+   // estimator
+  estimator_ = std::make_shared<aerial_robot_estimation::StateEstimator>();
+  estimator_->initialize(node_, robot_model);
+
   if (param_verbose) {
     RCLCPP_INFO(node_->get_logger(), "%s: main_rate is %f", node_->get_namespace(), main_rate);
   }
@@ -73,7 +77,7 @@ AerialRobotCore::~AerialRobotCore() {
 
 void AerialRobotCore::mainFunc() {
   // navigator_->update();
-  //  controller_->update();
+  // controller_->update();
 
   // for debug
   std_msgs::msg::String msg;

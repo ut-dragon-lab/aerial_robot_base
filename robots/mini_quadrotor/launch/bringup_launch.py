@@ -27,6 +27,8 @@ def generate_launch_description():
     robot_model_pkg  = LaunchConfiguration('robot_model')
     robot_ns         = LaunchConfiguration('robot_ns')
     robot_model_rviz = LaunchConfiguration('robot_model_rviz')
+    estimate_mode    = LaunchConfiguration('estimate_mode')
+    sim_estimate_mode= LaunchConfiguration('sim_estimate_mode')
     sim       = LaunchConfiguration('sim')
     rm       = LaunchConfiguration('rm')
     spawn_x = LaunchConfiguration('spawn_x')
@@ -62,6 +64,18 @@ def generate_launch_description():
         'robot_model_rviz',
         default_value='rviz_config.rviz',
         description='RViz display configuration for the robot model'
+    )
+
+    estimate_mode_arg = DeclareLaunchArgument(
+        'estimate_mode',
+        default_value='0',
+        description='Estimate mode (e.g., 0 for egomotion mode; 1 for experiment mode; 2 for ground truth mode)'
+    )
+
+    sim_estimate_mode_arg = DeclareLaunchArgument(
+        'sim_estimate_mode',
+        default_value='2',
+        description='Estimate mode in Simulation (e.g., 0 for egomotion mode; 1 for experiment mode; 2 for ground truth mode)'
     )
 
     simulation_arg = DeclareLaunchArgument(
@@ -133,6 +147,13 @@ def generate_launch_description():
         )
     }
 
+    # --- state estimation parameter  ---
+    state_estimation_file = PathJoinSubstitution([
+        FindPackageShare(robot_model_pkg),
+        'config',
+        'StateEstimation.yaml',
+    ])
+
     # --- rviz config path ---
     rviz_config = PathJoinSubstitution([
         FindPackageShare(robot_model_pkg),
@@ -146,9 +167,14 @@ def generate_launch_description():
         executable='aerial_robot_core_node',
         name='aerial_robot_core',
         namespace=robot_ns,
+        prefix=['gdb -ex run --args'],
         parameters=[{'use_sim_time': sim,
-                     'main_rate': 40.0},
-                    robot_description, robot_model_plugin_name],
+                     'main_rate': 40.0,
+                     'estimation.mode': PythonExpression([
+                         sim_estimate_mode, " if '", sim, "' == 'true' else '", estimate_mode, "'"])},
+                    robot_description,
+                    robot_model_plugin_name,
+                    state_estimation_file],
         output = 'screen'
     )
 
@@ -197,6 +223,8 @@ def generate_launch_description():
     ld.add_action(robot_model_pkg_arg)
     ld.add_action(robot_ns_arg)
     ld.add_action(robot_model_rviz_arg)
+    ld.add_action(estimate_mode_arg)
+    ld.add_action(sim_estimate_mode_arg)
     ld.add_action(simulation_arg)
     ld.add_action(realmachine_arg)
     ld.add_action(spawn_x_arg)
