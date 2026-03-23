@@ -43,13 +43,13 @@ static const rclcpp::Logger LOGGER
 StateEstimator::StateEstimator()
   : sensor_fusion_flag_(false),
     qu_size_(0),
+    unhealth_level_(0),
+    prev_pub_stamp_(0),
     flying_flag_(false),
     un_descend_flag_(false),
     force_att_control_flag_(false),
     has_groundtruth_odom_(false),
-    imu_handlers_(0), alt_handlers_(0), vo_handlers_(0), gps_handlers_(0),
-    fusion_loader_("kalman_filter", "kf_plugin::KalmanFilter"),
-    sensor_loader_("aerial_robot_estimation", "sensor_plugin::SensorBase")
+    imu_handlers_(0), alt_handlers_(0), vo_handlers_(0), gps_handlers_(0)
 {
   has_refined_yaw_estimate_[EGOMOTION_ESTIMATE] = false;
   has_refined_yaw_estimate_[EXPERIMENT_ESTIMATE] = false;
@@ -66,11 +66,6 @@ StateEstimator::StateEstimator()
     base_pose_.at(i) = KDL::Frame::Identity();
     cog_pose_.at(i) = KDL::Frame::Identity();
   }
-
-  /* TODO: represented sensors unhealth level */
-  unhealth_level_ = 0;
-
-  prev_pub_stamp_ = node_->get_clock()->now();
 }
 
 void StateEstimator::initialize(rclcpp::Node::SharedPtr node, std::shared_ptr<aerial_robot_model::RobotModel> robot_model) {
@@ -109,7 +104,7 @@ void StateEstimator::load() {
     return false;
   };
 
-  node_->get_parameter_or("estimation/mode", estimate_mode_, 0); //EGOMOTION_ESTIMATE: 0
+  node_->get_parameter_or("estimation.mode", estimate_mode_, 0); //EGOMOTION_ESTIMATE: 0
   if (estimate_mode_ > GROUND_TRUTH) {
       RCLCPP_ERROR(LOGGER,"the estimate mode is not correct: %d. \
                    It should be [0, 1, 2].",
@@ -125,6 +120,8 @@ void StateEstimator::load() {
                      estimate_mode_str << std::string("\033[0m"));
 
   /* kalman filter egomotion plugin initialization for 0: egomotion, 1: experiment */
+  fusion_loader_ptr_ = std::make_shared<pluginlib::ClassLoader<kf_plugin::KalmanFilter>>("kalman_filter", "kf_plugin::KalmanFilter");
+
   string fuse_prefix = "estimation.fusion.";
   for (int i = 0; i < 2; i++) {
     /* kalman filter egomotion plugin list */
@@ -142,25 +139,25 @@ void StateEstimator::load() {
 
     int cnt = 0;
     for (auto &fuser_name : fuser_list) {
-      for (auto &name : fusion_loader_.getDeclaredClasses()) {
+      for (auto &name : fusion_loader_ptr_->getDeclaredClasses()) {
         if(!pattern_match(fuser_name, name)) continue;
 
         std::stringstream fuser_no;
-        fuser_no << cnt + 1;
+        fuser_no << ++cnt;
 
         int fuser_id;
-
         std::string fuser_id_param
-          = fuse_prefix + "fuser_" + mode_prefix + "_id" + fuser_no.str();
-        if (!node_->get_parameter(fuser_id_param, fuser_id)) {
+          = fuse_prefix + mode_prefix + "_id" + fuser_no.str();
+        if (!node_->get_parameter<int>(fuser_id_param, fuser_id)) {
           RCLCPP_ERROR(LOGGER, "%s, no param in fuser %s id",
                        mode_prefix.c_str(), fuser_no.str().c_str());
           continue;
         }
 
+        std::string fuser_label;
         std::string fuser_name_param
-          = fuse_prefix + "fuser_" + mode_prefix + "_label" + fuser_no.str();
-        if (!node_->get_parameter(fuser_name_param, fuser_name)) {
+          = fuse_prefix + mode_prefix + "_label" + fuser_no.str();
+        if (!node_->get_parameter<std::string>(fuser_name_param, fuser_label)) {
           RCLCPP_ERROR(LOGGER, "%s, no param in fuser %s name",
                        mode_prefix.c_str(), fuser_no.str().c_str());
           continue;
@@ -168,11 +165,9 @@ void StateEstimator::load() {
 
         try {
           std::shared_ptr<kf_plugin::KalmanFilter> plugin_ptr
-            = fusion_loader_.createSharedInstance(name);
-          plugin_ptr->initialize(fuser_name, fuser_id);
-          fuser_maps_.at(i).insert(make_pair(name, plugin_ptr));
-
-          cnt ++;
+            = fusion_loader_ptr_->createSharedInstance(name);
+          plugin_ptr->initialize(fuser_label, fuser_id);
+          fuser_maps_.at(i).push_back(std::make_pair(name, plugin_ptr));
         } catch (const pluginlib::PluginlibException& ex) {
           RCLCPP_ERROR(LOGGER,
                        "Failed to load kf plugin '%s': %s",
@@ -181,6 +176,8 @@ void StateEstimator::load() {
       }
     }
   }
+
+  sensor_loader_ptr_ = std::make_shared<pluginlib::ClassLoader<sensor_plugin::SensorBase>>("aerial_robot_estimation", "sensor_plugin::SensorBase");
 
   std::vector<std::string> sensor_list{};
   if(!node_->get_parameter<std::vector<std::string>>(fuse_prefix + "sensor_list", sensor_list)) {
@@ -191,10 +188,10 @@ void StateEstimator::load() {
   vector<int> sensor_index(0);
 
   for (auto &plugin_name : sensor_list) {
-    for (auto &name : sensor_loader_.getDeclaredClasses()) {
+    for (auto &name : sensor_loader_ptr_->getDeclaredClasses()) {
       if(!pattern_match(plugin_name, name)) continue;
 
-      sensors_.push_back(sensor_loader_.createSharedInstance(name));
+      sensors_.push_back(sensor_loader_ptr_->createSharedInstance(name));
       sensor_index.push_back(1);
 
       if(name.find("imu") != std::string::npos) {
@@ -218,6 +215,7 @@ void StateEstimator::load() {
       }
 
       sensors_.back()->initialize(node_, robot_model_, shared_from_this(), name, sensor_index.back());
+
       break;
     }
   }
@@ -512,6 +510,9 @@ void StateEstimator::setBaseOrientationWxB(int estimate_mode, KDL::Vector v) {
   KDL::Vector wy_b = wz_b * wx_b;
   wy_b.Normalize();
 
+  wx_b = wy_b * wz_b;
+  wx_b.Normalize();
+
   rot_inv.UnitX(wx_b);
   rot_inv.UnitY(wy_b);
   rot_inv.UnitZ(wz_b);
@@ -527,6 +528,9 @@ void StateEstimator::setBaseOrientationWzB(int estimate_mode, KDL::Vector v) {
   KDL::Vector wx_b = rot_inv.UnitX();
   KDL::Vector wy_b = wz_b * wx_b;
   wy_b.Normalize();
+
+  wx_b = wy_b * wz_b;
+  wx_b.Normalize();
 
   rot_inv.UnitX(wx_b);
   rot_inv.UnitY(wy_b);
@@ -544,6 +548,9 @@ void StateEstimator::setCogOrientationWxB(int estimate_mode, KDL::Vector v) {
   KDL::Vector wy_c = wz_c * wx_c;
   wy_c.Normalize();
 
+  wx_c = wy_c * wz_c;
+  wx_c.Normalize();
+
   rot_inv.UnitX(wx_c);
   rot_inv.UnitY(wy_c);
   rot_inv.UnitZ(wz_c);
@@ -559,6 +566,9 @@ void StateEstimator::setCogOrientationWzB(int estimate_mode, KDL::Vector v) {
   KDL::Vector wx_c = rot_inv.UnitX();
   KDL::Vector wy_c = wz_c * wx_c;
   wy_c.Normalize();
+
+  wx_c = wy_c * wz_c;
+  wx_c.Normalize();
 
   rot_inv.UnitX(wx_c);
   rot_inv.UnitY(wy_c);
@@ -668,7 +678,7 @@ const double StateEstimator::getImuLatestTimeStamp() {
   return timestamp_qu_.back();
 }
 
-const FuserMap& StateEstimator::getFuserMap(int mode) {
+const FuserList& StateEstimator::getFuserList(int mode) {
   return fuser_maps_.at(mode);
 }
 
@@ -697,15 +707,18 @@ void StateEstimator::sensorHealthCheck() {
 }
 
 void StateEstimator::publish() {
+
   rclcpp::Time imu_stamp = imu_handlers_.at(0)->getTimeStamp();
+
+  if (imu_stamp.seconds() == 0) return; // not ready
 
   odomPublish(imu_stamp);
   tfBroadcast(imu_stamp);
-
   prev_pub_stamp_ = imu_stamp;
 }
 
 void StateEstimator::odomPublish(rclcpp::Time stamp) {
+
   nav_msgs::msg::Odometry odom_state;
   odom_state.header.stamp = stamp;
   odom_state.header.frame_id = "world";
@@ -729,7 +742,7 @@ void StateEstimator::odomPublish(rclcpp::Time stamp) {
 
 void StateEstimator::tfBroadcast(rclcpp::Time stamp) {
   /* avoid the redundant timestamp which induces annoying logs from TF server */
-  if (stamp == prev_pub_stamp_) return;
+  if (stamp.seconds() == prev_pub_stamp_.seconds()) return;
 
   const auto segments_tf = robot_model_->getSegmentsTf();
   /* skip if kinemtiacs is not initialized */

@@ -68,7 +68,7 @@ namespace sensor_plugin
     SensorBase::initialize(node, robot_model, estimator, sensor_name, index);
 
     string topic_name;
-    getParam<std::string>("odom_sub", topic_name, "vo");
+    getParam<std::string>("odom_sub", topic_name, "raw_odom");
     odom_sub_ = node_->create_subscription<nav_msgs::msg::Odometry>
       (topic_name, rclcpp::SystemDefaultsQoS(),
        std::bind(&Odometry::odomCallback, this, std::placeholders::_1));
@@ -286,7 +286,7 @@ namespace sensor_plugin
 
     KDL::Vector init_pos = base_pose_.p;
 
-    for(auto& fuser : estimator_->getFuserMap(EGOMOTION_ESTIMATE)) {
+    for(auto& fuser : estimator_->getFuserList(EGOMOTION_ESTIMATE)) {
 
       string plugin_name = fuser.first;
       FuserPtr kf = fuser.second;
@@ -322,7 +322,7 @@ namespace sensor_plugin
 
     if (getStatus() != Status::ACTIVE) return;
 
-    for(auto& fuser : estimator_->getFuserMap(EGOMOTION_ESTIMATE)) {
+    for(auto& fuser : estimator_->getFuserList(EGOMOTION_ESTIMATE)) {
 
       string plugin_name = fuser.first;
       FuserPtr kf = fuser.second;

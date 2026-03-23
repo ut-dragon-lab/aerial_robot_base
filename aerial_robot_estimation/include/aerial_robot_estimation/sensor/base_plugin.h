@@ -66,7 +66,7 @@ namespace sensor_plugin {
     SensorBase(): sensor_hz_(0),
                   prev_time_stamp_(-1),
                   get_sensor_rel_pose_(false),
-                  logger_(node_->get_logger()) {
+                  logger_(rclcpp::get_logger("")) {
       sensor_status_ = Status::INACTIVE;
       sensor_rel_pose_ == KDL::Frame::Identity();
     }
@@ -107,9 +107,10 @@ namespace sensor_plugin {
       RCLCPP_INFO_STREAM(logger_, "load sensor plugin: "
                          << sensor_name_ + std::to_string(sensor_index_));
 
-      if (!node_->get_parameter("estimate_mode", estimate_mode_) &&
-          !node_->get_parameter(sensor_name_ + ".estimate_mode"
-                                + std::to_string(sensor_index_),
+      std::string prefix = "estimation.fusion.sensor_plugin." + sensor_name_ ;
+      if (!node_->get_parameter(prefix + ".estimate_mode", estimate_mode_) &&
+          !node_->get_parameter(prefix + std::to_string(sensor_index_)
+                                + ".estimate_mode",
                                 estimate_mode_)) {
             RCLCPP_ERROR_STREAM(logger_,
                                 "Can not get param about estimate mode");
@@ -285,7 +286,7 @@ namespace sensor_plugin {
       if(!health_[chan])
         {
           health_[chan] = true;
-          RCLCPP_WARN(logger_, "Get sensor data, du: %f", st - health_stamp_[chan]);
+          RCLCPP_INFO(logger_, "Get sensor data, du: %f", st - health_stamp_[chan]);
         }
       health_stamp_[chan] = st;
     }
@@ -345,10 +346,10 @@ namespace sensor_plugin {
     }
 
     template<class T> void getParam(std::string param_name, T& param, T default_value) {
-      node_->get_parameter_or<T>(sensor_name_ + "." + param_name,
-                                 param, default_value);
-      node_->get_parameter<T>(sensor_name_ + "." + param_name
-                              + std::to_string(sensor_index_),
+
+      std::string prefix = "estimation.fusion.sensor_plugin." + sensor_name_ ;
+      node_->get_parameter_or<T>(prefix + "." + param_name, param, default_value);
+      node_->get_parameter<T>(prefix + std::to_string(sensor_index_) + "." + param_name,
                               param);
 
 

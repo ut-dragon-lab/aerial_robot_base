@@ -73,12 +73,12 @@ namespace sensor_plugin
     SensorBase::initialize(node, robot_model, estimator, sensor_name, index);
 
     std::string topic_name;
-    getParam<std::string>("mocap_sub_name", topic_name, std::string("pose"));
+    getParam<std::string>("mocap_sub_name", topic_name, std::string("mocap/pose"));
     msg_sub_ = node_->create_subscription<geometry_msgs::msg::PoseStamped>
       (topic_name, rclcpp::SystemDefaultsQoS(),
        std::bind(&Mocap::poseCallback, this, std::placeholders::_1));
 
-    topic_name = sensor_name + "/" + std::to_string(index) + "/states";
+    topic_name = sensor_name + std::to_string(index) + "/states";
     state_pub_ = node_->create_publisher<aerial_robot_msgs::msg::States>
       (topic_name, rclcpp::SystemDefaultsQoS());
 
@@ -93,7 +93,7 @@ namespace sensor_plugin
 
   void Mocap::poseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
 
-    tf2::fromMsg(msg->pose, raw_pose_);
+    raw_pose_ = aerial_robot_model::msgToKdl(msg->pose);
 
     time_stamp_ = msg->header.stamp;
 
@@ -154,7 +154,7 @@ namespace sensor_plugin
     estimator_->setBasePosStateStatus(State::Y, EXPERIMENT_ESTIMATE, true);
     estimator_->setBasePosStateStatus(State::Z, EXPERIMENT_ESTIMATE, true);
 
-    for(auto& fuser : estimator_->getFuserMap(EXPERIMENT_ESTIMATE))
+    for(auto& fuser : estimator_->getFuserList(EXPERIMENT_ESTIMATE))
       {
         string plugin_name = fuser.first;
         FuserPtr kf = fuser.second;
@@ -213,7 +213,7 @@ namespace sensor_plugin
     bool flag = estimate_mode_ & (1 << EXPERIMENT_ESTIMATE);
     if(!flag) return;
 
-    for(auto& fuser : estimator_->getFuserMap(EXPERIMENT_ESTIMATE)) {
+    for(auto& fuser : estimator_->getFuserList(EXPERIMENT_ESTIMATE)) {
 
       string plugin_name = fuser.first;
       FuserPtr  kf = fuser.second;
@@ -270,7 +270,6 @@ namespace sensor_plugin
     estimator_->setBaseOrientationWxB(EXPERIMENT_ESTIMATE, wx_b);
     estimator_->setCogOrientationWxB(EXPERIMENT_ESTIMATE, wx_c);
 
-
     // GROUND TRUTH mode
     // skip if there is a true plugin handle the groundtruth odom
     if(estimator_->hasGroundTruthOdom()) return;
@@ -318,7 +317,6 @@ namespace sensor_plugin
   void Mocap::rosParamInit() {
     getParam<double>("pos_noise_sigma", pos_noise_sigma_, 0.001 );
     getParam<double>("acc_bias_noise_sigma", acc_bias_noise_sigma_, 0.0);
-
     getParam<double>("sample_freq", sample_freq_, 100.0);
     getParam<double>("cutoff_pos_freq", cutoff_pos_freq_, 20.0);
     getParam<double>("cutoff_vel_freq", cutoff_vel_freq_, 20.0);

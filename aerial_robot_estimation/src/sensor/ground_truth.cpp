@@ -47,6 +47,10 @@ namespace sensor_plugin {
                        EstimatorPtr estimator,
                        string sensor_name, int index) {
 
+    // First: force to set the estimation mode as 2 (GroundTruth Mode)
+    std::string prefix = "estimation.fusion.sensor_plugin.ground_truth";
+    node->set_parameter(rclcpp::Parameter(prefix + ".estimate_mode", 2));
+
     SensorBase::initialize(node, robot_model, estimator, sensor_name, index);
 
     std::string topic_name;
@@ -63,8 +67,8 @@ namespace sensor_plugin {
 
   void GroundTruth::odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg) {
 
-    tf2::fromMsg(msg->pose.pose, pose_);
-    tf2::fromMsg(msg->twist.twist, twist_);
+    pose_  = aerial_robot_model::msgToKdl(msg->pose.pose);
+    twist_ = aerial_robot_model::msgToKdl(msg->twist.twist);
 
     Eigen::Vector3d ang_vec;
     tf2::vectorKDLToEigen(twist_.rot, ang_vec);

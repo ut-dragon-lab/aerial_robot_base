@@ -99,7 +99,6 @@ namespace sensor_plugin {
 
     void preProcessState() override;
     void fuse() override;
-    void setState() override;
     void print();
 
     void publish() override;

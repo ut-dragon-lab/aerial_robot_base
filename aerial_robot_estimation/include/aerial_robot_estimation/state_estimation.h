@@ -61,7 +61,7 @@
 using StatusVector = std::array<int, 3>; // x, y, z
 using StatusMatrix = std::array<StatusVector, 3>; // egomotion, experiment, ground truth
 using FuserPtr = std::shared_ptr<kf_plugin::KalmanFilter>;
-using FuserMap = std::map<std::string, FuserPtr>;
+using FuserList = std::vector<std::pair<std::string, FuserPtr>>;
 
 namespace State {
   enum {
@@ -180,7 +180,7 @@ namespace aerial_robot_estimation {
     inline const bool hasRefinedYawEstimate(int i) const {return has_refined_yaw_estimate_.at(i); }
     inline void SetRefinedYawEstimate(int i, bool flag) {has_refined_yaw_estimate_.at(i) = flag; }
 
-    const FuserMap& getFuserMap(int mode);
+    const FuserList& getFuserList(int mode);
 
     inline int getEstimateMode() {return estimate_mode_;}
     inline void setEstimateMode(int estimate_mode) {estimate_mode_ = estimate_mode;}
@@ -217,7 +217,7 @@ namespace aerial_robot_estimation {
 
 
     /* sensor handlers */
-    pluginlib::ClassLoader<sensor_plugin::SensorBase> sensor_loader_;
+    std::shared_ptr<pluginlib::ClassLoader<sensor_plugin::SensorBase>> sensor_loader_ptr_;
     vector<std::shared_ptr<sensor_plugin::SensorBase> > sensors_;
     vector<std::shared_ptr<sensor_plugin::SensorBase> > imu_handlers_;
     vector<std::shared_ptr<sensor_plugin::SensorBase> > alt_handlers_;
@@ -252,9 +252,9 @@ namespace aerial_robot_estimation {
     deque<KDL::Vector> base_omega_qu_;
 
     /* sensor fusion */
-    pluginlib::ClassLoader<kf_plugin::KalmanFilter> fusion_loader_;
+    std::shared_ptr<pluginlib::ClassLoader<kf_plugin::KalmanFilter>> fusion_loader_ptr_;
     bool sensor_fusion_flag_;
-    std::array<FuserMap, 2> fuser_maps_; //0: egomotion; 1: experiment
+    std::array<FuserList, 2> fuser_maps_; //0: egomotion; 1: experiment
 
     /* sensor (un)health level */
     uint8_t unhealth_level_;

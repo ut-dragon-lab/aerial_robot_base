@@ -40,7 +40,7 @@ using namespace aerial_robot_estimation;
 namespace sensor_plugin {
   Imu::Imu ():
     sensor_plugin::SensorBase(),
-    calib_count_(200), dt_(0) {
+    calib_count_(0), calib_max_count_(200), dt_(0) {
 
     states_.states.resize(3);
     states_.states[0].id = "x";
@@ -77,11 +77,11 @@ namespace sensor_plugin {
       (topic_name, rclcpp::SystemDefaultsQoS(),
        std::bind(&Imu::imuCallback, this, std::placeholders::_1));
 
-    topic_name = sensor_name + "/" + std::to_string(index) + "/ros/imu";
+    topic_name = sensor_name + std::to_string(index) + "/ros/imu";
     ros_imu_pub_ = node_->create_publisher<sensor_msgs::msg::Imu>
       (topic_name, rclcpp::SystemDefaultsQoS());
 
-    topic_name = sensor_name + "/" + std::to_string(index) + "/states";
+    topic_name = sensor_name + std::to_string(index) + "/states";
     state_pub_ = node_->create_publisher<aerial_robot_msgs::msg::States>
       (topic_name, rclcpp::SystemDefaultsQoS());
   }
@@ -110,10 +110,10 @@ namespace sensor_plugin {
     }
 
     /* substitude */
-    tf2::fromMsg(msg->acc,  acc_b_);
-    tf2::fromMsg(msg->gyro, omega_);
-    tf2::fromMsg(msg->mag,  mag_);
-    tf2::fromMsg(q, raw_rot_);
+    acc_b_ = KDL::Vector(msg->acc[0], msg->acc[1], msg->acc[2]);
+    omega_ = KDL::Vector(msg->gyro[0], msg->gyro[1], msg->gyro[2]);
+    mag_   = KDL::Vector(msg->mag[0], msg->mag[1], msg->mag[2]);
+    raw_rot_ = aerial_robot_model::msgToKdl(q);
 
     /* main process */
     time_stamp_ = msg->stamp;
@@ -133,7 +133,6 @@ namespace sensor_plugin {
 
     /* set the time internal */
     dt_ = time_stamp_.seconds() - prev_time_stamp_.seconds();
-
 
     /* set the rotational states */
     /* only base on raw IMU value */
@@ -181,9 +180,7 @@ namespace sensor_plugin {
     if(calib_count_ == 100) {
       // warm up for callback to be stable subscribe
       calib_max_count_ = calib_time_ / dt_;
-      RCLCPP_INFO_STREAM(logger_,
-                         string("\033[32m IMU calib max count is : ") <<
-                         calib_max_count_ << string("\033[0m"));
+      RCLCPP_INFO_STREAM(logger_, "IMU calib max count is : " << calib_max_count_);
 
       setStatus(Status::INIT); // start init
     }
@@ -209,7 +206,7 @@ namespace sensor_plugin {
        string("\033[32m IMU acc bias w.r.t body frame: [") <<
        acc_bias_b.x() << ", " <<
        acc_bias_b.y() << ", " <<
-       acc_bias_b.z() << ", dt: " << dt_ <<
+       acc_bias_b.z() << "], dt: " << dt_ <<
        string("\033[0m"));
 
     estimator_->setBaseQueueSize(1 / dt_);
@@ -228,7 +225,7 @@ namespace sensor_plugin {
     for(int mode = 0; mode < 2; mode++) {
       if(!isModeActivate(mode)) continue;
 
-      for(auto& fuser : estimator_->getFuserMap(mode)) {
+      for(auto& fuser : estimator_->getFuserList(mode)) {
         std::string plugin_name = fuser.first;
         FuserPtr kf = fuser.second;
         int id = kf->getId();
@@ -270,12 +267,15 @@ namespace sensor_plugin {
 
   void Imu::fuse() {
 
+    /* if status is no activate, skip */
+    if (getStatus() != Status::ACTIVE) return;
+
     /* fuser for 0: egomotion, 1: experiment */
     for(int mode = 0; mode < 2; mode++)
       {
         if(!isModeActivate(mode)) continue;
 
-        for(auto& fuser : estimator_->getFuserMap(mode))
+        for(auto& fuser : estimator_->getFuserList(mode))
           {
             string plugin_name = fuser.first;
             FuserPtr kf = fuser.second;
@@ -380,12 +380,15 @@ namespace sensor_plugin {
 
   void Imu::setTranslationalStates() {
 
+    /* if status is no activate, skip */
+    if (getStatus() != Status::ACTIVE) return;
+
     /* fuser for 0: egomotion, 1: experiment */
     for(int mode = 0; mode < 2; mode++) {
       if(!isModeActivate(mode)) continue;
 
       KDL::Vector pos, vel, acc;
-      for(auto& fuser : estimator_->getFuserMap(mode))
+      for(auto& fuser : estimator_->getFuserList(mode))
         {
           string plugin_name = fuser.first;
           FuserPtr kf = fuser.second;
@@ -453,13 +456,14 @@ namespace sensor_plugin {
       KDL::Vector cog_vel = vel + base_rot * (base_omega * pos_b2c);
       KDL::Vector cog_acc = acc;
 
-      estimator_->setCogPos(mode, pos);
-      estimator_->setCogPos(mode, vel);
-      estimator_->setCogPos(mode, acc);
+      estimator_->setCogPos(mode, cog_pos);
+      estimator_->setCogVel(mode, cog_vel);
+      estimator_->setCogAcc(mode, cog_acc);
     }
   }
 
   void Imu::publish() {
+
     /* ros IMU message */
     sensor_msgs::msg::Imu imu_msg;
     imu_msg.header.stamp = time_stamp_;
@@ -511,6 +515,5 @@ namespace sensor_plugin {
 /* plugin registration */
 #include <pluginlib/class_list_macros.hpp>
 PLUGINLIB_EXPORT_CLASS(sensor_plugin::Imu, sensor_plugin::SensorBase);
-
 
 
