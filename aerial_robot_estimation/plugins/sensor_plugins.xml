@@ -1,0 +1,19 @@
+<library path="sensor_pluginlib">
+
+  <class name="sensor_plugin/imu" type="sensor_plugin::Imu" base_class_type="sensor_plugin::SensorBase">
+    <description>IMU sensor plugin.</description>
+  </class>
+
+  <class name="sensor_plugin/ground_truth" type="sensor_plugin::GroundTruth" base_class_type="sensor_plugin::SensorBase">
+    <description>Mocap sensor plugin.</description>
+  </class>
+
+  <class name="sensor_plugin/mocap" type="sensor_plugin::Mocap" base_class_type="sensor_plugin::SensorBase">
+    <description>Mocap sensor plugin.</description>
+  </class>
+
+  <class name="sensor_plugin/odometry" type="sensor_plugin::Odometry" base_class_type="sensor_plugin::SensorBase">
+    <description>Visual Odometry sensor plugin.</description>
+  </class>
+
+</library>

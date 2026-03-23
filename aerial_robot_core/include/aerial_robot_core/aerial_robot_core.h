@@ -36,6 +36,7 @@
 #pragma once
 
 #include <aerial_robot_model/model/aerial_robot_model_ros.h>
+#include <aerial_robot_estimation/state_estimation.h>
 
 #include <memory>
 #include <rclcpp/rclcpp.hpp>
@@ -55,6 +56,9 @@ class AerialRobotCore {
 
   // robot_model_ros
   std::shared_ptr<aerial_robot_model::RobotModelRos> robot_model_ros_;
+
+  // estimator
+  std::shared_ptr<aerial_robot_estimation::StateEstimator> estimator_;
 
   // for debug
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr debug_pub_;

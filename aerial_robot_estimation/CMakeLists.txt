@@ -19,6 +19,7 @@ find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(spinal REQUIRED)
 find_package(tf2_eigen_kdl REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 
 # --- common dependent packages ---
 set(ROS_DEPENDENCIES
@@ -35,6 +36,7 @@ set(ROS_DEPENDENCIES
   std_srvs
   spinal
   tf2_eigen_kdl
+  tf2_geometry_msgs
 )
 
 # --- aerial_robot_estimation library ---
@@ -65,10 +67,40 @@ target_include_directories(sensor_pluginlib
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
   )
+pluginlib_export_plugin_description_file(
+  ${PROJECT_NAME}
+  plugins/sensor_plugins.xml
+  )
 
 
+# --- installation ------------------------------
+install(
+  TARGETS
+    aerial_robot_estimation
+    sensor_pluginlib
+  EXPORT export_${PROJECT_NAME}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+  )
+
+install(
+  DIRECTORY plugins
+  DESTINATION share/${PROJECT_NAME}
+  )
+
+install(
+  DIRECTORY include/
+  DESTINATION include
+)
+
+
+# --- export ------------------------------
+ament_export_libraries(
+  aerial_robot_estimation
+  )
 ament_export_include_directories(include)
-ament_export_dependencies(ROS_DEPENDENCIES
+ament_export_dependencies(
   aerial_robot_model
   aerial_robot_msgs
   #geodesy
@@ -81,6 +113,7 @@ ament_export_dependencies(ROS_DEPENDENCIES
   std_srvs
   spinal
   tf2_eigen_kdl
+  tf2_geometry_msgs
 )
 
 ament_package()

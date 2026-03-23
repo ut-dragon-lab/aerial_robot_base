@@ -1,12 +1,9 @@
 cmake_minimum_required(VERSION 3.5)
 project(aerial_robot_core)
 
-if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic)
-endif()
-
 find_package(ament_cmake REQUIRED)
 find_package(aerial_robot_model REQUIRED)
+find_package(aerial_robot_estimation REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
@@ -27,6 +24,7 @@ ament_target_dependencies(aerial_robot_core_node
   std_msgs
   std_srvs
   aerial_robot_model
+  aerial_robot_estimation
   )
 
 install(
