@@ -67,6 +67,25 @@ inline bool isValidRotation(const KDL::Rotation& m) {
   return (std::fabs(1.0 - Eigen::Quaterniond(w, x, y, z).squaredNorm()) < 1e-6);
 }
 
+inline KDL::Vector msgToKdl(const geometry_msgs::msg::Vector3& in) {
+  return KDL::Vector(in.x, in.y, in.z);
+}
+
+inline KDL::Rotation msgToKdl(const geometry_msgs::msg::Quaternion& in) {
+  return KDL::Rotation::Quaternion(in.x, in.y, in.z, in.w);
+}
+
+inline KDL::Frame msgToKdl(const geometry_msgs::msg::Pose& in) {
+
+  KDL::Frame out;
+  tf2::fromMsg(in, out);
+  return out;
+}
+
+inline KDL::Twist msgToKdl(const geometry_msgs::msg::Twist& in) {
+  return KDL::Twist(msgToKdl(in.linear), msgToKdl(in.angular));
+}
+
 inline geometry_msgs::msg::TransformStamped kdlToMsg(const KDL::Frame& in) { return tf2::kdlToTransform(in); }
 
 inline geometry_msgs::msg::PointStamped kdlToMsg(const KDL::Vector& in) {
