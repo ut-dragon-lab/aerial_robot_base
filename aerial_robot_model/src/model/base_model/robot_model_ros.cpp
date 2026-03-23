@@ -40,12 +40,10 @@ RobotModelRos::RobotModelRos(rclcpp::Node::SharedPtr node)
       // pluginlib: package name, base class
       robot_model_loader_("aerial_robot_model", "aerial_robot_model::RobotModel") {
   // 1) Declare & read the tf_prefix parameter
-  node_->declare_parameter<std::string>("tf_prefix", "");
-  node_->get_parameter("tf_prefix", tf_prefix_);
+  node_->get_parameter_or<std::string>("tf_prefix", tf_prefix_, "");
 
   // 2) Load the robot‐model plugin
   std::string plugin_name;
-  node_->declare_parameter<std::string>("robot_model_plugin_name", "");
   if (node_->get_parameter("robot_model_plugin_name", plugin_name)) {
     try {
       robot_model_ = robot_model_loader_.createSharedInstance(plugin_name);
@@ -85,9 +83,13 @@ RobotModelRos::RobotModelRos(rclcpp::Node::SharedPtr node)
   }
 
   // 5) Advertise the add_extra_module service
-  add_extra_module_srv_ = node_->create_service<aerial_robot_model::srv::AddExtraModule>(
-      "add_extra_module", std::bind(&RobotModelRos::addExtraModuleCallback, this, std::placeholders::_1,
-                                    std::placeholders::_2, std::placeholders::_3));
+  add_extra_module_srv_
+    = node_->create_service<aerial_robot_model::srv::AddExtraModule>
+    ("add_extra_module",
+     std::bind(&RobotModelRos::addExtraModuleCallback, this,
+               std::placeholders::_1,
+               std::placeholders::_2,
+               std::placeholders::_3));
 }
 
 void RobotModelRos::jointStateCallback(const sensor_msgs::msg::JointState::SharedPtr msg) {
