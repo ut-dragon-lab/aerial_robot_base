@@ -12,6 +12,6 @@ repositories:
 
   kalman_filter:
     type: git
-    url: "https://github.com/sugihara-16/kalman_filter.git"
-    version: "PR/ROS2"
+    url: "https://github.com/ut-dragon-lab/kalman_filter.git"
+    version: "ros2"
     local-name: "kalman_filter"
