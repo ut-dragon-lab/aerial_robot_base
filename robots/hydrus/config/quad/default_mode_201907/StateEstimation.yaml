@@ -1,0 +1,57 @@
+# Sensor Fuser Loader
+/**/aerial_robot_core:
+  ros__parameters:
+    estimation:
+      fusion:
+        # egomotion estimation
+        egomotion_list:
+          - kalman_filter/kf_pos_vel_acc
+          - kalman_filter/kf_pos_vel_acc
+          - kalman_filter/kf_pos_vel_acc
+
+        # experiment estimation
+        experiment_list:
+          - kalman_filter/kf_pos_vel_acc
+          - kalman_filter/kf_pos_vel_acc
+          - kalman_filter/kf_pos_vel_acc
+
+        # specific id(int) of sensor fuser, axis for kf
+        egomotion_id1: 1 # 1 << 0
+        egomotion_id2: 2 # 1 << 1
+        egomotion_id3: 4 # 1 << 2
+
+        experiment_id1: 1 # 1 << 0
+        experiment_id2: 2 # 1 << 1
+        experiment_id3: 4 # 1 << 2
+
+        # specific label of sensor fuser
+        egomotion_label1: /ee/x
+        egomotion_label2: /ee/y
+        egomotion_label3: /ee/z
+
+        experiment_label1: /ex/x
+        experiment_label2: /ex/y
+        experiment_label3: /ex/z
+
+        # sensor plugin
+        sensor_list:
+          - sensor_plugin/imu
+          - sensor_plugin/mocap
+          - sensor_plugin/ground_truth
+
+        # EGOMOTION_ESTIMATION_MODE = 0
+        # EXPERIMENT_MODE = 1
+        # GROUND_TRUTH_MODE = 2
+
+        sensor_plugin:
+          imu:
+            estimate_mode: 3 # 1<<0 + 1<<1
+            level_acc_noise_sigma: 0.05
+            z_acc_noise_sigma: 0.05
+            level_acc_bias_noise_sigma: 0.001
+            z_acc_bias_noise_sigma: 0.001
+          mocap:
+            estimate_mode: 6 # 1<<1 + 1<<2
+            pos_noise_sigma: 0.0002
+            acc_bias_noise_sigma: 0.001 # force acc bias estimation by kalman filter
+            time_sync: false
