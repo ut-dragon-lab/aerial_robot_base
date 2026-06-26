@@ -14,6 +14,7 @@
   <depend>sensor_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>nav_msgs</depend>
+  <depend>rosgraph_msgs</depend>
   <depend>aerial_robot_msgs</depend>
   <depend>spinal</depend>
   <depend>controller_manager_msgs</depend>
@@ -31,6 +32,10 @@
   <depend>ros2_controllers</depend>
   <depend>controller_interface</depend>
   <depend>ros_gz_bridge</depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>xacro</exec_depend>
+  <exec_depend condition="$AERIAL_ROBOT_WITH_MUJOCO == 'true'">python3-mujoco</exec_depend>
 
   <!-- Linters -->
   <test_depend>ament_lint_auto</test_depend>

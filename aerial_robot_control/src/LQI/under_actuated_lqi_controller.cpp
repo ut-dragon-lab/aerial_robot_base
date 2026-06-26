@@ -36,7 +36,19 @@
 namespace aerial_robot_control
 {
 
-UnderActuatedLQIController::UnderActuatedLQIController() : target_roll_(0), target_pitch_(0), candidate_yaw_term_(0)
+UnderActuatedLQIController::UnderActuatedLQIController()
+  : gain_generate_rate_(15.0),
+    realtime_update_(false),
+    target_roll_(0),
+    target_pitch_(0),
+    candidate_yaw_term_(0),
+    lqi_mode_(4),
+    clamp_gain_(true),
+    has_optimal_gain_(false),
+    gyro_moment_compensation_(false),
+    verbose_(false),
+    trans_constraint_weight_(1.0),
+    att_control_weight_(1.0)
 {
   lqi_roll_pitch_weight_.setZero();
   lqi_yaw_weight_.setZero();
@@ -87,12 +99,16 @@ void UnderActuatedLQIController::initialize(rclcpp::Node::SharedPtr node,
   {
     gain_generator_thread_ = std::thread(std::bind(&UnderActuatedLQIController::gainGeneratorFunc, this));
   }
+  else
+  {
+    (void)updateGain(false);
+  }
 }
 
 UnderActuatedLQIController::~UnderActuatedLQIController()
 {
   // Clean up multithreading
-  if (realtime_update_)
+  if (gain_generator_thread_.joinable())
   {
     gain_generator_thread_.join();
   }
@@ -139,23 +155,7 @@ void UnderActuatedLQIController::gainGeneratorFunc()
 
   while (rclcpp::ok())
   {
-    if (robot_model_->initialized())
-    {
-      has_optimal_gain_ = optimalGain();
-      if (has_optimal_gain_)
-      {
-        clampGain();
-        sendGain();
-      }
-      else
-        RCLCPP_ERROR(node_->get_logger(), "[LQI] Cannot solve hamilton matrix!");
-    }
-    else
-    {
-      RCLCPP_DEBUG(node_->get_logger(), "[LQI] Robot model is not initialized!");
-      resetGain();
-    }
-
+    (void)updateGain(true);
     loop_rate.sleep();
   }
 }
@@ -164,10 +164,14 @@ void UnderActuatedLQIController::activate()
 {
   ControlBase::activate();
 
+  if (!has_optimal_gain_ && !realtime_update_)
+  {
+    (void)updateGain(false);
+  }
+
   // Publish gains during activation for general multirotor
   if (has_optimal_gain_)
   {
-    clampGain();
     sendGain();
     RCLCPP_INFO(node_->get_logger(), "[LQI] Send LQI gains");
   }
@@ -177,11 +181,36 @@ void UnderActuatedLQIController::activate()
   }
 }
 
+bool UnderActuatedLQIController::updateGain(bool publish_gain)
+{
+  if (!robot_model_->initialized())
+  {
+    RCLCPP_DEBUG(node_->get_logger(), "[LQI] Robot model is not initialized!");
+    resetGain();
+    has_optimal_gain_ = false;
+    return false;
+  }
+
+  has_optimal_gain_ = optimalGain();
+  if (!has_optimal_gain_)
+  {
+    RCLCPP_ERROR(node_->get_logger(), "[LQI] Cannot solve hamilton matrix!");
+    return false;
+  }
+
+  clampGain();
+  if (publish_gain)
+  {
+    sendGain();
+  }
+  return true;
+}
+
 bool UnderActuatedLQIController::optimalGain()
 {
   // Reference:
-  // M, Zhao, et.al, "Transformable multirotor with two-dimensional multilinks: modeling, control, and whole-body aerial
-  // manipulation" Sec. 3.2
+  // M, Zhao, et.al, "Transformable multirotor with two-dimensional multilinks:
+  // modeling, control, and whole-body aerial manipulation" Sec. 3.2
 
   Eigen::MatrixXd P = robot_model_->calcWrenchMatrixOnCoG();
   Eigen::MatrixXd P_dash = Eigen::MatrixXd::Zero(lqi_mode_, motor_num_);
@@ -232,13 +261,15 @@ bool UnderActuatedLQIController::optimalGain()
   if (K_.cols() == 0 || K_.rows() == 0)
   {
     RCLCPP_DEBUG_STREAM(node_->get_logger(),
-                        "[LQI] Gain generator: Not using Kleinman method since initial K is empty");
+                        "[LQI] Gain generator: Not using Kleinman method since "
+                        "initial K is empty");
     use_kleinman_method = false;
   }
   if (!control_utils::care(A, B, R, Q, K_, use_kleinman_method))
   {
     RCLCPP_ERROR(node_->get_logger(),
-                 "[LQI] Gain generator: Error in solver of continuous-time algebraic Riccati equation (CARE)");
+                 "[LQI] Gain generator: Error in solver of continuous-time "
+                 "algebraic Riccati equation (CARE)");
     return false;
   }
 
@@ -262,7 +293,8 @@ bool UnderActuatedLQIController::optimalGain()
 
 void UnderActuatedLQIController::clampGain()
 {
-  /* Avoid the violation of 16int_t range because of spinal::RollPitchYawTerms */
+  /* Avoid the violation of 16int_t range because of spinal::RollPitchYawTerms
+   */
   double max_gain_thresh = 32.767;
   double max_roll_p_gain = 0, max_roll_d_gain = 0, max_pitch_p_gain = 0, max_pitch_d_gain = 0, max_yaw_d_gain = 0;
   for (int i = 0; i < motor_num_; ++i)
@@ -278,31 +310,41 @@ void UnderActuatedLQIController::clampGain()
          yaw_d_gain_scale = 1;
   if (max_roll_p_gain > max_gain_thresh)
   {
-    RCLCPP_WARN(node_->get_logger(), "[LQI] Gain generator: the max roll p gain violate the range of int16_t: %f",
+    RCLCPP_WARN(node_->get_logger(),
+                "[LQI] Gain generator: the max roll p gain violate the range "
+                "of int16_t: %f",
                 max_roll_p_gain);
     roll_p_gain_scale = max_gain_thresh / max_roll_p_gain;
   }
   if (max_roll_d_gain > max_gain_thresh)
   {
-    RCLCPP_WARN(node_->get_logger(), "[LQI] Gain generator: the max roll d gain violate the range of int16_t: %f",
+    RCLCPP_WARN(node_->get_logger(),
+                "[LQI] Gain generator: the max roll d gain violate the range "
+                "of int16_t: %f",
                 max_roll_d_gain);
     roll_d_gain_scale = max_gain_thresh / max_roll_d_gain;
   }
   if (max_pitch_p_gain > max_gain_thresh)
   {
-    RCLCPP_WARN(node_->get_logger(), "[LQI] Gain generator: the max pitch p gain violate the range of int16_t: %f",
+    RCLCPP_WARN(node_->get_logger(),
+                "[LQI] Gain generator: the max pitch p gain violate the range "
+                "of int16_t: %f",
                 max_pitch_p_gain);
     pitch_p_gain_scale = max_gain_thresh / max_pitch_p_gain;
   }
   if (max_pitch_d_gain > max_gain_thresh)
   {
-    RCLCPP_WARN(node_->get_logger(), "[LQI] Gain generator: the max pitch d gain violate the range of int16_t: %f",
+    RCLCPP_WARN(node_->get_logger(),
+                "[LQI] Gain generator: the max pitch d gain violate the range "
+                "of int16_t: %f",
                 max_pitch_d_gain);
     pitch_d_gain_scale = max_gain_thresh / max_pitch_d_gain;
   }
   if (max_yaw_d_gain > max_gain_thresh)
   {
-    RCLCPP_WARN(node_->get_logger(), "[LQI] Gain generator: the max yaw d gain violate the range of int16_t: %f",
+    RCLCPP_WARN(node_->get_logger(),
+                "[LQI] Gain generator: the max yaw d gain violate the range of "
+                "int16_t: %f",
                 max_yaw_d_gain);
     yaw_d_gain_scale = max_gain_thresh / max_yaw_d_gain;
   }
@@ -406,7 +448,8 @@ void UnderActuatedLQIController::allocateYawTerm()
     target_thrust_yaw_term *= (1 - residual / max_term);
   }
 
-  // Special process for yaw because of the limited bandwidth between PC and spinal
+  // Special process for yaw because of the limited bandwidth between PC and
+  // spinal
   double max_yaw_scale = 0;  // To reconstruct yaw control term in spinal
   for (int i = 0; i < motor_num_; i++)
   {
@@ -509,7 +552,6 @@ void UnderActuatedLQIController::sendRotationalInertiaComp()
 
   p_matrix_pseudo_inverse_inertia_pub_->publish(p_pseudo_inverse_with_inertia_msg);
 }
-
 
 rcl_interfaces::msg::SetParametersResult UnderActuatedLQIController::parametersCallback(
     const std::vector<rclcpp::Parameter> &parameters)
@@ -626,16 +668,7 @@ rcl_interfaces::msg::SetParametersResult UnderActuatedLQIController::parametersC
   if (!realtime_update_)
   {
     // Instantly modify gain if model has no joints, i.e., is fixed
-    has_optimal_gain_ = optimalGain();
-    if (has_optimal_gain_)
-    {
-      clampGain();
-      sendGain();
-    }
-    else
-    {
-      RCLCPP_ERROR(node_->get_logger(), "[LQI] Cannot solve hamilton matrix!");
-    }
+    (void)updateGain(true);
   }
   return result;
 }

@@ -3,13 +3,30 @@
     xmlns:xacro="http://www.ros.org/wiki/xacro" name="mini_quadrotor" >
 
   <xacro:arg name="robot_name" default="mini_quadrotor" />
+  <xacro:arg name="rotor_visual_speed_rate" default="20.0" />
 
   <!-- robot urdf -->
   <xacro:include filename="$(find mini_quadrotor)/urdf/robot.urdf.xacro" />
 
+  <xacro:macro name="rotor_control_joint" params="id">
+    <joint name="rotor${id}">
+      <command_interface name="effort">
+        <param name="min">${min_force}</param>
+        <param name="max">${max_force}</param>
+      </command_interface>
+      <state_interface name="position">
+        <param name="initial_value">${0}</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+      <state_interface name="effort"/>
+    </joint>
+  </xacro:macro>
+
   <ros2_control name="aerial_robot_sim_system" type="system">
     <hardware>
       <plugin>gz_ros2_control/AerialRobotHwSim</plugin>
+      <param name="m_f_rate">${m_f_rate}</param>
+      <param name="rotor_visual_speed_rate">$(arg rotor_visual_speed_rate)</param>
     </hardware>
     <joint name="dummy_joint">
       <command_interface name="position">
@@ -22,6 +39,10 @@
       <state_interface name="velocity"/>
       <state_interface name="effort"/>
     </joint>
+    <xacro:rotor_control_joint id="1"/>
+    <xacro:rotor_control_joint id="2"/>
+    <xacro:rotor_control_joint id="3"/>
+    <xacro:rotor_control_joint id="4"/>
     <sensor name="spinal_imu">
       <state_interface name="orientation.x"/>
       <state_interface name="orientation.y"/>

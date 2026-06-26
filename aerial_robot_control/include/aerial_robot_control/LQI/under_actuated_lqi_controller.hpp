@@ -41,7 +41,6 @@
 #include "spinal_msgs/msg/roll_pitch_yaw_terms.hpp"
 #include "spinal_msgs/msg/p_matrix_pseudo_inverse_with_inertia.hpp"
 
-
 namespace aerial_robot_control
 {
 
@@ -90,6 +89,7 @@ protected:
   virtual void rosParamInit();
   rcl_interfaces::msg::SetParametersResult parametersCallback(const std::vector<rclcpp::Parameter> &parameters);
   void gainGeneratorFunc();
+  bool updateGain(bool publish_gain);
 
   virtual bool optimalGain();
   void resetGain() { K_ = Eigen::MatrixXd(); }

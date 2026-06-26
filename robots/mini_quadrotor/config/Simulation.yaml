@@ -15,6 +15,41 @@
   ros__parameters:
     imu: "spinal_imu"
     mag: "spinal_mag"
+    rotor_joints:
+      - rotor1
+      - rotor2
+      - rotor3
+      - rotor4
+
+/**/mujoco_attitude_controller:
+  ros__parameters:
+    update_rate: 1000.0
+    use_ground_truth: true
+    rotor_joints:
+      - rotor1
+      - rotor2
+      - rotor3
+      - rotor4
+
+/**/mujoco_bridge:
+  ros__parameters:
+    step_rate: 1000.0
+    render_rate: 60.0
+    rotor_joints:
+      - rotor1
+      - rotor2
+      - rotor3
+      - rotor4
+
+    ground_truth_pub_rate: 0.01
+    ground_truth_pos_noise: 0.001
+    ground_truth_vel_noise: 0.005
+    ground_truth_rot_noise: 0.001
+    ground_truth_angular_noise: 0.005
+
+    mocap_pub_rate: 0.01
+    mocap_pos_noise: 0.001
+    mocap_rot_noise: 0.001
 
 /**/sim_param_server:
   ros__parameters:

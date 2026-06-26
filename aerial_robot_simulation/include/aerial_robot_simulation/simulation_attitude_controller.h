@@ -36,13 +36,13 @@
 #define SIMULATION_ATTITUDE_CONTROLLER_H
 
 #include <aerial_robot_simulation/spinal_interface.h>
+#include <flight_control/simulation/flight_control_ros_module.h>
+#include <thruster/simulation/thruster_ros_module.h>
 
 #include <boost/scoped_ptr.hpp>
-// #include <flight_control/flight_control.h>
 #include <urdf/model.h>
 
 #include <memory>
-#include <spinal_msgs/msg/desire_coord.hpp>
 #include <std_msgs/msg/float64.hpp>
 #include <string>
 
@@ -71,6 +71,10 @@ public:
 
 private:
   hardware_interface::SpinalInterface spinal_iface_;
+  ThrusterRosModule thruster_ros_mod_;
+  FlightControlRosModule flight_control_ros_mod_;
+
+  void writeRotorCommands_();
 };
 
 }

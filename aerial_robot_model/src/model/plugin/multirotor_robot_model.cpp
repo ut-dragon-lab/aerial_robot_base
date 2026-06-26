@@ -37,11 +37,14 @@
 
 MultirotorRobotModel::MultirotorRobotModel() : RobotModel() {}
 
-void MultirotorRobotModel::initialize(rclcpp::Node::SharedPtr node, bool init_with_rosparam, bool verbose,
-                                      bool fixed_model, double fc_f_min_thre, double fc_t_min_thre, double epsilon) {
-  fixed_model = false;
-  aerial_robot_model::RobotModel::initialize(std::move(node), init_with_rosparam, verbose, fixed_model, fc_f_min_thre,
-                                             fc_t_min_thre, epsilon);
+void MultirotorRobotModel::initialize(rclcpp::Node::SharedPtr node,
+                                      bool init_with_rosparam, bool verbose,
+                                      bool fixed_model, double fc_f_min_thre,
+                                      double fc_t_min_thre, double epsilon) {
+  node->get_parameter_or("robot_model_fixed", fixed_model, false);
+  aerial_robot_model::RobotModel::initialize(
+      std::move(node), init_with_rosparam, verbose, fixed_model, fc_f_min_thre,
+      fc_t_min_thre, epsilon);
 }
 
 /* plugin registration */

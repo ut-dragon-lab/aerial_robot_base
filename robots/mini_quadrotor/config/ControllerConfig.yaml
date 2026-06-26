@@ -12,22 +12,24 @@
 
       # NOTE: Always define parameters as double (5.0) instead of int (5)
       xy:
-        p_gain: 5.0
-        i_gain: 0.05
-        d_gain: 5.0
-        limit_sum: 3.0
-        limit_p: 3.0
-        limit_i: 1.5
-        limit_d: 3.0
+        p_gain: 1.0
+        i_gain: 0.0
+        d_gain: 1.5
+        limit_sum: 1.5
+        limit_p: 1.5
+        limit_i: 0.0
+        limit_d: 1.5
 
-      # roll_pitch:
-      #   p_gain: 0.0
-      #   i_gain: 0.0
-      #   d_gain: 0.0
-      #   limit_sum: 0.0
-      #   limit_p: 0.0
-      #   limit_i: 0.0
-      #   limit_d: 0.0
+      roll_pitch:
+        p_gain: 8.0
+        i_gain: 0.0
+        d_gain: 3.0
+        limit_sum: 4.0
+        limit_p: 3.0
+        limit_i: 0.0
+        limit_d: 2.0
+        limit_err_p: 0.6
+        start_integration_height: 0.3
 
       z:
         p_gain: 5.0
@@ -42,9 +44,9 @@
         force_landing_descending_rate: -0.6
 
       yaw:
-        # p_gain: 0.0
-        # i_gain: 0.0
-        # d_gain: 0.0
+        p_gain: 4.0
+        i_gain: 0.0
+        d_gain: 2.0
         limit_sum: 6.0  # N for clamping thrust force
         limit_p: 4.0
         limit_i: 4.0
@@ -75,4 +77,3 @@
 
         trans_constraint_weight: 100.0
         att_control_weight: 1.0
-

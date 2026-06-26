@@ -5,6 +5,7 @@
   <!-- general attribute -->
   <baselink name="fc" />
   <thrust_link name="thrust" />
+  <xacro:arg name="rotor_joint_velocity_limit" default="10000.0" />
 
   <!-- kinematics [m] -->
   <xacro:property name="rotor_x" value="0.085" />
@@ -12,9 +13,11 @@
   <xacro:property name="rotor_z" value="0.026" />
 
   <!-- dynamics -->
-  <m_f_rate value="-0.011" /> <!-- drag torque rate -->
+  <xacro:property name="m_f_rate" value="-0.011" /> <!-- drag torque rate -->
+  <m_f_rate value="${m_f_rate}" />
   <xacro:property name="max_force" value="8.0" /> <!-- [N] -->
   <xacro:property name="min_force" value="0.0" /> <!-- [N] -->
+  <xacro:property name="rotor_joint_velocity_limit" value="$(arg rotor_joint_velocity_limit)" />
 
   <!-- friction -->
   <xacro:macro name="damping_factor" params="link">
@@ -44,7 +47,7 @@
 
   <xacro:macro name="propeller_module" params="id x y z direction">
     <joint name="rotor${id}" type="continuous">
-      <limit effort="100.0" lower="${min_force}" upper="${max_force}" velocity="0.5"/>
+      <limit effort="100.0" lower="${min_force}" upper="${max_force}" velocity="${rotor_joint_velocity_limit}"/>
       <parent link="main_body"/>
       <child link="thrust${id}"/>
       <origin rpy="0 0 0" xyz="${x} ${y} ${z}"/>

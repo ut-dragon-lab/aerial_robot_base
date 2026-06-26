@@ -31,6 +31,16 @@ colcon build --symlink-install
 source install/setup.bash
 ```
 
+### Optional MuJoCo runtime
+MuJoCo simulation uses the Python `mujoco` package at runtime. Register the workspace rosdep overlay before installing it:
+```bash
+cd ~/ros2/aerial_robot_base_ws/src/aerial_robot_base
+sudo sh -c "echo yaml file://$(pwd)/dependencies/rosdep/mujoco.yaml > /etc/ros/rosdep/sources.list.d/50-aerial-robot-mujoco.list"
+rosdep update
+AERIAL_ROBOT_WITH_MUJOCO=true rosdep install -y -r --from-paths aerial_robot_simulation --ignore-src --rosdistro ${ROS_DISTRO} --as-root pip:false
+```
+If your Python environment is managed separately, the equivalent package is `mujoco`.
+
 Setup pre-commit formatting
 ```bash
 cd ~/ros2/aerial_robot_base_ws/src/aerial_robot_base

@@ -1,0 +1,5 @@
+python3-mujoco:
+  ubuntu:
+    pip:
+      packages:
+        - mujoco

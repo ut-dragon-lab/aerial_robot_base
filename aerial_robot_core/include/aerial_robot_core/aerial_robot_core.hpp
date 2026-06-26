@@ -60,6 +60,11 @@ public:
 private:
   bool param_verbose_;
   double main_rate_;
+  bool warn_main_rate_;
+  double main_rate_warn_tolerance_;
+  int main_rate_warn_throttle_ms_;
+  int main_rate_warn_warmup_count_;
+  int main_rate_warn_count_{ 0 };
   rclcpp::TimerBase::SharedPtr main_timer_;
 
   rclcpp::Clock steady_clock_{ RCL_STEADY_TIME };

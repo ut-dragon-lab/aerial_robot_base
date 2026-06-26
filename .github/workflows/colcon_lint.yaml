@@ -11,10 +11,13 @@ jobs:
   lint:
     name: Ament Build & Linters
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        ros_distro: [humble]
     env:
-      ROS_DISTRO: humble  # Can be changed/updated
+      ROS_DISTRO: ${{ matrix.ros_distro }}
       DEBIAN_FRONTEND: noninteractive
-    container: ros:${ROS_DISTRO}
+    container: ros:${{ matrix.ros_distro }}
     defaults:
       run:
         shell: bash

@@ -13,6 +13,7 @@ find_package(controller_interface REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
+find_package(rosgraph_msgs REQUIRED)
 find_package(aerial_robot_model REQUIRED)
 find_package(aerial_robot_msgs REQUIRED)
 find_package(spinal REQUIRED)
@@ -73,6 +74,7 @@ ament_target_dependencies(spinal_interface
 )
 target_link_libraries(spinal_interface
   rotor_handle_lib
+  spinal::spinal_math
 )
 
 add_library(aerial_robot_hw_sim SHARED
@@ -109,14 +111,30 @@ ament_target_dependencies(simulation_attitude_controller
   gz_ros2_control
   ignition-gazebo6
   controller_interface
+  spinal
 )
 target_link_libraries(simulation_attitude_controller
   spinal_interface
+  spinal::spinal_flight_control
 )
 
 add_executable(sim_param_server src/sim_param_server.cpp)
 ament_target_dependencies(sim_param_server
   rclcpp
+)
+
+add_executable(mujoco_attitude_controller src/mujoco_attitude_controller_node.cpp)
+ament_target_dependencies(mujoco_attitude_controller
+  rclcpp
+  rclcpp_lifecycle
+  sensor_msgs
+  nav_msgs
+  spinal
+)
+target_link_libraries(mujoco_attitude_controller
+  spinal_interface
+  spinal::spinal_math
+  spinal::spinal_flight_control
 )
 
 
@@ -132,7 +150,8 @@ pluginlib_export_plugin_description_file(
 
 
 install(
-  TARGETS rotor_handle_lib spinal_interface aerial_robot_hw_sim simulation_attitude_controller sim_param_server
+  TARGETS rotor_handle_lib spinal_interface aerial_robot_hw_sim simulation_attitude_controller
+          sim_param_server mujoco_attitude_controller
   EXPORT export_${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
@@ -147,6 +166,11 @@ install(
 install(
   DIRECTORY launch xacro config gazebo_model
   DESTINATION share/${PROJECT_NAME}
+)
+
+install(PROGRAMS
+  scripts/mujoco_bridge.py
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 install(

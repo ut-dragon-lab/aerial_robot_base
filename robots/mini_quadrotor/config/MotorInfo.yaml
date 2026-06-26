@@ -5,6 +5,7 @@
                 max_pwm: 0.975 # 1950 [ms]
                 min_thrust: 0.0 # [N]
                 force_landing_thrust: 1.0 # [N]
+                m_f_rate: -0.011 # drag torque rate
                 pwm_conversion_mode: 1 # Polynominal Mode
                 vel_ref_num: 2
                 ref1:
@@ -23,4 +24,3 @@
                         polynominal2: -101.84075291  # -1.0184075291 x10^2
                         polynominal1:  81.582961230  # 8.1582961230 x10
                         polynominal0:  56.9010618089 # 56.9010618089 x1
-

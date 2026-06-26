@@ -34,7 +34,7 @@ set(ROS_DEPENDENCIES
 )
 
 # --- Build flight_navigation library ---
-add_library (flight_navigation
+add_library(flight_navigation
   src/flight_navigation.cpp
   src/util/joy_parser.cpp
   src/trajectory/reference_base.cpp

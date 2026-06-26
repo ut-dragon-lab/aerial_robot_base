@@ -43,6 +43,10 @@ AerialRobotCore::AerialRobotCore(rclcpp::Node::SharedPtr node)
   // Get parameters from launch file
   node_->get_parameter_or("param_verbose", param_verbose_, false);
   node_->get_parameter_or("main_rate", main_rate_, 1.0);
+  node_->get_parameter_or("warn_main_rate", warn_main_rate_, true);
+  node_->get_parameter_or("main_rate_warn_tolerance", main_rate_warn_tolerance_, 0.20);
+  node_->get_parameter_or("main_rate_warn_throttle_ms", main_rate_warn_throttle_ms_, 5000);
+  node_->get_parameter_or("main_rate_warn_warmup_count", main_rate_warn_warmup_count_, 10);
   double main_dt = 1.0 / main_rate_;
 
   if (param_verbose_) RCLCPP_INFO(node_->get_logger(), "%s: main rate is %f Hz", node_->get_namespace(), main_rate_);
@@ -51,6 +55,22 @@ AerialRobotCore::AerialRobotCore(rclcpp::Node::SharedPtr node)
   {
     RCLCPP_ERROR(node_->get_logger(), "Main rate is zero or negative!");
     return;
+  }
+
+  if (main_rate_warn_tolerance_ < 0.0)
+  {
+    RCLCPP_WARN(node_->get_logger(), "main_rate_warn_tolerance must be non-negative. Use 0.0 instead.");
+    main_rate_warn_tolerance_ = 0.0;
+  }
+  if (main_rate_warn_throttle_ms_ <= 0)
+  {
+    RCLCPP_WARN(node_->get_logger(), "main_rate_warn_throttle_ms must be positive. Use 5000 ms instead.");
+    main_rate_warn_throttle_ms_ = 5000;
+  }
+  if (main_rate_warn_warmup_count_ < 0)
+  {
+    RCLCPP_WARN(node_->get_logger(), "main_rate_warn_warmup_count must be non-negative. Use 0 instead.");
+    main_rate_warn_warmup_count_ = 0;
   }
 
   /* Model */
@@ -95,12 +115,16 @@ void AerialRobotCore::mainFunc()
   if (last_main_time_ns_ != 0)
   {
     const double dt_real = static_cast<double>(now_ns - last_main_time_ns_) * 1e-9;
-    const double tolerance = 0.05;  // 5% tolerance
-    const double dt_desire = (1.0 + tolerance) * 1.0 / main_rate_;
-    if (dt_real > dt_desire)
+    const double dt_desire = (1.0 + main_rate_warn_tolerance_) * 1.0 / main_rate_;
+    if (main_rate_warn_count_ < main_rate_warn_warmup_count_)
     {
-      RCLCPP_WARN(node_->get_logger(), "Main loop rate is too low: (ts_real) %f s > (ts_desire incl. %2f%% tol) %f s",
-                  dt_real, tolerance * 100, dt_desire);
+      ++main_rate_warn_count_;
+    }
+    else if (warn_main_rate_ && dt_real > dt_desire)
+    {
+      RCLCPP_WARN_THROTTLE(node_->get_logger(), steady_clock_, main_rate_warn_throttle_ms_,
+                           "Main loop rate is too low: (ts_real) %f s > (ts_desire incl. %2f%% tol) %f s", dt_real,
+                           main_rate_warn_tolerance_ * 100, dt_desire);
     }
   }
   last_main_time_ns_ = now_ns;  // In nanosecons

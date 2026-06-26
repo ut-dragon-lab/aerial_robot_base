@@ -113,6 +113,7 @@ ament_export_dependencies(
 # --- Linters ---
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
+  set(AMENT_LINT_AUTO_EXCLUDE ament_cmake_pep257)
   ament_lint_auto_find_test_dependencies()
 endif()
 

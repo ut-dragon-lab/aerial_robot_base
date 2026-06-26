@@ -42,6 +42,9 @@ magnetometer and pseudo-motion capture are incorporated.
 
 #include <ignition/msgs/imu.pb.h>
 
+#include <ignition/gazebo/Joint.hh>
+#include <ignition/gazebo/Link.hh>
+#include <ignition/gazebo/Util.hh>
 #include <ignition/gazebo/components/AngularVelocity.hh>
 #include <ignition/gazebo/components/Imu.hh>
 #include <ignition/gazebo/components/JointForce.hh>
@@ -61,6 +64,8 @@ magnetometer and pseudo-motion capture are incorporated.
 #include <ignition/gazebo/components/Sensor.hh>
 #include <ignition/math.hh>
 #include <ignition/transport/Node.hh>
+#include <cmath>
+#include <exception>
 #include <limits>
 #include <map>
 #include <memory>
@@ -77,31 +82,51 @@ struct jointData
   std::string name;
 
   /// \brief Current joint position
-  double joint_position;
+  double joint_position{ 0.0 };
 
   /// \brief Current joint velocity
-  double joint_velocity;
+  double joint_velocity{ 0.0 };
 
   /// \brief Current joint effort
-  double joint_effort;
+  double joint_effort{ 0.0 };
 
   /// \brief Current cmd joint position
-  double joint_position_cmd;
+  double joint_position_cmd{ 0.0 };
 
   /// \brief Current cmd joint velocity
-  double joint_velocity_cmd;
+  double joint_velocity_cmd{ 0.0 };
 
   /// \brief Current cmd joint effort
-  double joint_effort_cmd;
+  double joint_effort_cmd{ 0.0 };
 
   /// \brief flag if joint is actuated (has command interfaces) or passive
-  bool is_actuated;
+  bool is_actuated{ false };
+
+  /// \brief flag if this joint command represents rotor thrust
+  bool is_rotor{ false };
 
   /// \brief handles to the joints from within Gazebo
-  sim::Entity sim_joint;
+  sim::Entity sim_joint{ sim::kNullEntity };
+
+  /// \brief parent link where rotor yaw drag torque is applied
+  sim::Entity sim_parent_link{ sim::kNullEntity };
+
+  /// \brief child link where rotor thrust is applied
+  sim::Entity sim_child_link{ sim::kNullEntity };
+
+  /// \brief rotor spin direction, taken from the joint axis z sign
+  double rotor_direction{ 1.0 };
+
+  /// \brief force to yaw torque conversion rate
+  double m_f_rate{ 0.0 };
+
+  /// \brief visual joint speed per thrust force [rad/s/N]
+  double rotor_visual_speed_rate{ 1.0 };
 
   /// \brief Control method defined in the URDF for each joint.
-  gz_ros2_control::GazeboSimSystemInterface::ControlMethod joint_control_method;
+  gz_ros2_control::GazeboSimSystemInterface::ControlMethod joint_control_method{
+    gz_ros2_control::GazeboSimSystemInterface::NONE
+  };
 };
 
 struct MimicJoint
@@ -293,6 +318,57 @@ bool AerialRobotHwSim::initSim(rclcpp::Node::SharedPtr &model_nh, std::map<std::
     return false;
   }
 
+  double m_f_rate = 0.0;
+  const auto m_f_rate_it = hardware_info.hardware_parameters.find("m_f_rate");
+  if (m_f_rate_it != hardware_info.hardware_parameters.end())
+  {
+    try
+    {
+      m_f_rate = std::stod(m_f_rate_it->second);
+      RCLCPP_INFO_STREAM(this->nh_->get_logger(), "[sim] Loaded m_f_rate: " << m_f_rate);
+    }
+    catch (const std::exception &)
+    {
+      RCLCPP_WARN_STREAM(this->nh_->get_logger(), "[sim] Invalid m_f_rate hardware parameter: " << m_f_rate_it->second);
+    }
+  }
+  else
+  {
+    RCLCPP_WARN(this->nh_->get_logger(), "[sim] m_f_rate hardware parameter is not set; yaw drag torque is 0");
+  }
+
+  double rotor_visual_speed_rate = 1.0;
+  const auto rotor_visual_speed_rate_it = hardware_info.hardware_parameters.find("rotor_visual_speed_rate");
+  if (rotor_visual_speed_rate_it != hardware_info.hardware_parameters.end())
+  {
+    try
+    {
+      rotor_visual_speed_rate = std::stod(rotor_visual_speed_rate_it->second);
+      RCLCPP_INFO_STREAM(this->nh_->get_logger(), "[sim] Loaded rotor_visual_speed_rate: " << rotor_visual_speed_rate);
+    }
+    catch (const std::exception &)
+    {
+      RCLCPP_WARN_STREAM(this->nh_->get_logger(), "[sim] Invalid rotor_visual_speed_rate hardware parameter: "
+                                                      << rotor_visual_speed_rate_it->second);
+    }
+  }
+
+  auto find_link_by_name = [&ecm](const std::string &link_name)
+  {
+    sim::Entity result = sim::kNullEntity;
+    ecm.Each<sim::components::Link, sim::components::Name>(
+        [&](const sim::Entity &entity, const sim::components::Link *, const sim::components::Name *name) -> bool
+        {
+          if (name->Data() == link_name)
+          {
+            result = entity;
+            return false;
+          }
+          return true;
+        });
+    return result;
+  };
+
   for (unsigned int j = 0; j < this->dataPtr->n_dof_; j++)
   {
     auto &joint_info = hardware_info.joints[j];
@@ -308,6 +384,28 @@ bool AerialRobotHwSim::initSim(rclcpp::Node::SharedPtr &model_nh, std::map<std::
 
     sim::Entity simjoint = enableJoints[joint_name];
     this->dataPtr->joints_[j].sim_joint = simjoint;
+
+    sim::Joint joint(simjoint);
+    const auto parent_link_name = joint.ParentLinkName(ecm);
+    if (parent_link_name)
+    {
+      this->dataPtr->joints_[j].sim_parent_link = find_link_by_name(*parent_link_name);
+    }
+
+    const auto child_link_name = joint.ChildLinkName(ecm);
+    if (child_link_name)
+    {
+      this->dataPtr->joints_[j].sim_child_link = find_link_by_name(*child_link_name);
+    }
+
+    const auto joint_axes = joint.Axis(ecm);
+    if (joint_axes && !joint_axes->empty())
+    {
+      const double axis_z = joint_axes->front().Xyz().Z();
+      this->dataPtr->joints_[j].rotor_direction = axis_z < 0.0 ? -1.0 : 1.0;
+    }
+    this->dataPtr->joints_[j].m_f_rate = m_f_rate;
+    this->dataPtr->joints_[j].rotor_visual_speed_rate = rotor_visual_speed_rate;
 
     // Create joint position component if one doesn't exist
     if (!ecm.EntityHasComponentType(simjoint, sim::components::JointPosition().TypeId()))
@@ -478,9 +576,22 @@ bool AerialRobotHwSim::initSim(rclcpp::Node::SharedPtr &model_nh, std::map<std::
       else if (joint_info.command_interfaces[i].name == "effort")
       {
         this->dataPtr->joints_[j].joint_control_method |= EFFORT;
+        this->dataPtr->joints_[j].is_rotor = joint_name.rfind("rotor", 0) == 0;
         RCLCPP_INFO_STREAM(this->nh_->get_logger(), "\t\t effort");
         this->dataPtr->command_interfaces_.emplace_back(joint_name + suffix, hardware_interface::HW_IF_EFFORT,
                                                         &this->dataPtr->joints_[j].joint_effort_cmd);
+        if (this->dataPtr->joints_[j].is_rotor)
+        {
+          if (this->dataPtr->joints_[j].sim_child_link == sim::kNullEntity)
+          {
+            RCLCPP_WARN_STREAM(this->nh_->get_logger(),
+                               "[sim] Rotor joint " << joint_name << " has no child link for thrust");
+          }
+          else
+          {
+            RCLCPP_INFO_STREAM(this->nh_->get_logger(), "[sim] Rotor thrust command registered for " << joint_name);
+          }
+        }
         if (!std::isnan(initial_effort))
         {
           this->dataPtr->joints_[j].joint_effort_cmd = initial_effort;
@@ -912,6 +1023,8 @@ hardware_interface::return_type AerialRobotHwSim::perform_command_mode_switch(
 
 hardware_interface::return_type AerialRobotHwSim::write(const rclcpp::Time &sim_time, const rclcpp::Duration &period)
 {
+  std::map<sim::Entity, std::pair<ignition::math::Vector3d, ignition::math::Vector3d>> rotor_parent_wrenches;
+
   for (unsigned int i = 0; i < this->dataPtr->joints_.size(); ++i)
   {
     if (this->dataPtr->joints_[i].sim_joint == sim::kNullEntity)
@@ -957,6 +1070,51 @@ hardware_interface::return_type AerialRobotHwSim::write(const rclcpp::Time &sim_
     }
     else if (this->dataPtr->joints_[i].joint_control_method & EFFORT)
     {
+      if (this->dataPtr->joints_[i].is_rotor)
+      {
+        const double thrust = std::max(0.0, this->dataPtr->joints_[i].joint_effort_cmd);
+        this->dataPtr->joints_[i].joint_effort = thrust;
+
+        const double visual_speed = thrust * this->dataPtr->joints_[i].rotor_visual_speed_rate;
+        this->dataPtr->joints_[i].joint_velocity_cmd = visual_speed;
+        auto vel = this->dataPtr->ecm->Component<sim::components::JointVelocityCmd>(
+            this->dataPtr->joints_[i].sim_joint);
+        if (vel == nullptr)
+        {
+          this->dataPtr->ecm->CreateComponent(this->dataPtr->joints_[i].sim_joint,
+                                              sim::components::JointVelocityCmd({ visual_speed }));
+        }
+        else if (!vel->Data().empty())
+        {
+          vel->Data()[0] = visual_speed;
+        }
+
+        if (this->dataPtr->joints_[i].sim_child_link != sim::kNullEntity)
+        {
+          sim::Link rotor_link(this->dataPtr->joints_[i].sim_child_link);
+          const auto rotor_pose = sim::worldPose(this->dataPtr->joints_[i].sim_child_link, *this->dataPtr->ecm);
+          const auto thrust_axis = rotor_pose.Rot().RotateVector(ignition::math::Vector3d::UnitZ);
+          const auto yaw_drag_torque = thrust_axis * (thrust * this->dataPtr->joints_[i].rotor_direction *
+                                                      this->dataPtr->joints_[i].m_f_rate);
+
+          if (this->dataPtr->joints_[i].sim_parent_link != sim::kNullEntity)
+          {
+            const auto parent_pose = sim::worldPose(this->dataPtr->joints_[i].sim_parent_link, *this->dataPtr->ecm);
+            const auto thrust_force = thrust_axis * thrust;
+            const auto thrust_arm = rotor_pose.Pos() - parent_pose.Pos();
+            auto &wrench = rotor_parent_wrenches[this->dataPtr->joints_[i].sim_parent_link];
+            wrench.first += thrust_force;
+            wrench.second += thrust_arm.Cross(thrust_force) + yaw_drag_torque;
+          }
+          else
+          {
+            rotor_link.AddWorldWrench(*this->dataPtr->ecm, thrust_axis * thrust, yaw_drag_torque);
+          }
+        }
+
+        continue;
+      }
+
       if (!this->dataPtr->ecm->Component<sim::components::JointForceCmd>(this->dataPtr->joints_[i].sim_joint))
       {
         this->dataPtr->ecm->CreateComponent(this->dataPtr->joints_[i].sim_joint, sim::components::JointForceCmd({ 0 }));
@@ -984,6 +1142,13 @@ hardware_interface::return_type AerialRobotHwSim::write(const rclcpp::Time &sim_
         vel->Data()[0] = target_vel;
       }
     }
+  }
+
+  for (const auto &rotor_parent_wrench : rotor_parent_wrenches)
+  {
+    sim::Link parent_link(rotor_parent_wrench.first);
+    parent_link.AddWorldWrench(*this->dataPtr->ecm, rotor_parent_wrench.second.first,
+                               rotor_parent_wrench.second.second);
   }
 
   // Set values of all mimic joints with respect to mimicked joint
