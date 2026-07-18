@@ -123,6 +123,7 @@ def generate_launch_description():
         [
             FindPackageShare(robot_model_pkg),
             "config",
+            airframe,
             "MotorInfo.yaml",
         ]
     )

@@ -1,0 +1,46 @@
+/**/aerial_robot_core:
+  ros__parameters:
+    motor_info:
+      min_pwm: 0.58
+      max_pwm: 0.92
+      min_thrust: 0.0
+      force_landing_thrust: 7.0
+      m_f_rate: 0.0
+      pwm_conversion_mode: 1
+      vel_ref_num: 4
+
+      ref1:
+        voltage: 25.2
+        max_thrust: 24.26
+        polynominal4: 2.539831
+        polynominal3: -15.430486
+        polynominal2: 26.10449153
+        polynominal1: 8.542191758
+        polynominal0: 53.26142529
+      ref2:
+        voltage: 24.2
+        max_thrust: 22.07
+        polynominal4: 4.471272
+        polynominal3: -22.8613135
+        polynominal2: 34.52944303
+        polynominal1: 6.990587655
+        polynominal0: 53.55660546
+      ref3:
+        voltage: 23.2
+        max_thrust: 21.35
+        polynominal4: 3.89786
+        polynominal3: -21.7499721
+        polynominal2: 33.08787072
+        polynominal1: 10.11759403
+        polynominal0: 53.3154616
+      ref4:
+        voltage: 22.2
+        max_thrust: 19.91
+        polynominal4: 2.940051
+        polynominal3: -19.6361097
+        polynominal2: 30.85354129
+        polynominal1: 13.24809567
+        polynominal0: 53.05019009
+
+      rotor_damping_rate: 0.1
+      rotor_force_noise: 0.01
