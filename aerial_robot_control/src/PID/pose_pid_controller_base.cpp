@@ -151,21 +151,25 @@ void PosePIDControllerBase::initialize(rclcpp::Node::SharedPtr node,
   /* Roll & Pitch */
   getParam<double>(roll_pitch_ns + ".start_integration_height", start_roll_pitch_integration_height_, 0.01);
 
-  if (node_->has_parameter(roll_pitch_ns + ".p_gain"))
-  {
-    loadParam(roll_pitch_ns);
-    pid_controllers_.push_back(PID("roll", p_gain, i_gain, d_gain, limit_sum, limit_p, limit_i, limit_d, limit_err_p,
-                                   limit_err_i, limit_err_d));
-    pid_controllers_.push_back(PID("pitch", p_gain, i_gain, d_gain, limit_sum, limit_p, limit_i, limit_d, limit_err_p,
-                                   limit_err_i, limit_err_d));
-  }
-  else
+  // PID.yaml always declares the shared roll_pitch parameters.  Prefer explicit
+  // per-axis parameters supplied by an airframe so that legacy configurations
+  // with different roll and pitch gains are not silently masked by the common
+  // defaults.
+  if (node_->has_parameter(roll_ns + ".p_gain") && node_->has_parameter(pitch_ns + ".p_gain"))
   {
     loadParam(roll_ns);
     pid_controllers_.push_back(PID("roll", p_gain, i_gain, d_gain, limit_sum, limit_p, limit_i, limit_d, limit_err_p,
                                    limit_err_i, limit_err_d));
 
     loadParam(pitch_ns);
+    pid_controllers_.push_back(PID("pitch", p_gain, i_gain, d_gain, limit_sum, limit_p, limit_i, limit_d, limit_err_p,
+                                   limit_err_i, limit_err_d));
+  }
+  else
+  {
+    loadParam(roll_pitch_ns);
+    pid_controllers_.push_back(PID("roll", p_gain, i_gain, d_gain, limit_sum, limit_p, limit_i, limit_d, limit_err_p,
+                                   limit_err_i, limit_err_d));
     pid_controllers_.push_back(PID("pitch", p_gain, i_gain, d_gain, limit_sum, limit_p, limit_i, limit_d, limit_err_p,
                                    limit_err_i, limit_err_d));
   }

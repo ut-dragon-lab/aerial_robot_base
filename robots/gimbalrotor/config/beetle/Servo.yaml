@@ -1,0 +1,41 @@
+/**/servo_bridge:
+  ros__parameters:
+    servo_controller:
+      groups:
+        - gimbals
+      gimbals:
+        angle_sgn: 1
+        angle_scale: 0.001533981
+        zero_point_offset: 2048
+        no_real_state: false
+        state_sub_topic: ""
+        pos_pub_topic: ""
+        torque_pub_topic: ""
+        servo_enable_pub_topic: ""
+        simulation:
+          type: joint_group_position_controller
+        names:
+          - gimbal1
+          - gimbal2
+          - gimbal3
+          - gimbal4
+        gimbal1:
+          id: 0
+          init_value: 0.0
+        gimbal2:
+          id: 1
+          init_value: 0.0
+        gimbal3:
+          id: 2
+          init_value: 0.0
+        gimbal4:
+          id: 3
+          init_value: 0.0
+
+/**/joint_group_position_controller:
+  ros__parameters:
+    joints:
+      - gimbal1
+      - gimbal2
+      - gimbal3
+      - gimbal4

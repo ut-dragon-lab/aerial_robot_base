@@ -1,0 +1,93 @@
+<?xml version="1.0"?>
+<robot
+    xmlns:xacro="http://www.ros.org/wiki/xacro" name="beetle" >
+  <xacro:arg name="robot_name" default="gimbalrotor" />
+  <xacro:arg name="rotor_visual_speed_rate" default="20.0" />
+
+  <xacro:include filename="$(find gimbalrotor)/robots/beetle/gimbalrotor.urdf.xacro" />
+
+  <xacro:macro name="rotor_control_joint" params="id">
+    <joint name="rotor${id}">
+      <command_interface name="effort">
+        <param name="min">${min_force}</param>
+        <param name="max">${max_force}</param>
+      </command_interface>
+      <state_interface name="position">
+        <param name="initial_value">${0}</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+      <state_interface name="effort"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:macro name="gimbal_control_joint" params="name">
+    <joint name="${name}">
+      <command_interface name="position">
+        <param name="min">-1.57</param>
+        <param name="max">1.57</param>
+      </command_interface>
+      <state_interface name="position">
+        <param name="initial_value">${0}</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+      <state_interface name="effort"/>
+    </joint>
+  </xacro:macro>
+
+  <ros2_control name="aerial_robot_sim_system" type="system">
+    <hardware>
+      <plugin>gz_ros2_control/AerialRobotHwSim</plugin>
+      <param name="m_f_rate">${m_f_rate}</param>
+      <param name="rotor_visual_speed_rate">$(arg rotor_visual_speed_rate)</param>
+    </hardware>
+    <xacro:rotor_control_joint id="1"/>
+    <xacro:rotor_control_joint id="2"/>
+    <xacro:rotor_control_joint id="3"/>
+    <xacro:rotor_control_joint id="4"/>
+    <xacro:gimbal_control_joint name="gimbal1"/>
+    <xacro:gimbal_control_joint name="gimbal2"/>
+    <xacro:gimbal_control_joint name="gimbal3"/>
+    <xacro:gimbal_control_joint name="gimbal4"/>
+    <sensor name="spinal_imu">
+      <state_interface name="orientation.x"/>
+      <state_interface name="orientation.y"/>
+      <state_interface name="orientation.z"/>
+      <state_interface name="orientation.w"/>
+      <state_interface name="angular_velocity.x"/>
+      <state_interface name="angular_velocity.y"/>
+      <state_interface name="angular_velocity.z"/>
+      <state_interface name="linear_acceleration.x"/>
+      <state_interface name="linear_acceleration.y"/>
+      <state_interface name="linear_acceleration.z"/>
+    </sensor>
+    <sensor name="spinal_mag">
+      <state_interface name="field_tesla.x"/>
+      <state_interface name="field_tesla.y"/>
+      <state_interface name="field_tesla.z"/>
+    </sensor>
+  </ros2_control>
+
+  <!-- gazebo plugin for default controller and sensors -->
+  <xacro:include filename="$(find aerial_robot_simulation)/xacro/spinal.gazebo.xacro" />
+  <xacro:gazebo_spinal robot_name="$(arg robot_name)" mag_frame="fc" />
+
+  <!-- Gazebo Classic only: disabled until gazebo_grasp_fix is ported to Gazebo Sim.
+  <gazebo>
+    <plugin name="gazebo_grasp_fix" filename="libgazebo_grasp_fix.so">
+      <arm>
+        <arm_name>docking_mech</arm_name>
+        <palm_link>dummy_palm</palm_link>
+        <gripper_link>dummy_gripper</gripper_link>
+      </arm>
+      <forces_angle_tolerance>90</forces_angle_tolerance>
+      <update_rate>50</update_rate>
+      <grip_count_threshold>0</grip_count_threshold>
+      <max_grip_count>1</max_grip_count>
+      <release_tolerance>1</release_tolerance>
+      <disable_collisions_on_attach>false</disable_collisions_on_attach>
+      <contact_topic>__default_topic__</contact_topic>
+    </plugin>
+  </gazebo>
+  -->
+
+</robot>

@@ -24,7 +24,7 @@ from launch_ros.parameter_descriptions import ParameterValue
 _ARGS = [
     ("robot_model",         "gimbalrotor",      "Name of the robot model ROS package"),
     ("robot_ns",            "gimbalrotor",      "Namespace for all robot nodes"),
-    ("airframe",            "quad",             "Gimbalrotor airframe variant", ["quad", "tri", "bi", "tri_omni"]),
+    ("airframe",            "quad",             "Gimbalrotor airframe variant", ["quad", "tri", "bi", "tri_omni", "beetle"]),
     ("real_machine",        "true",             "Use real machine specific bring-up inside model_launch", ["true", "false"]),
     ("main_rate",           "40.0",             "Core node main loop rate [Hz]"),
     ("estimation_mode",     "0",                "Estimator mode on real machine: 0=egomotion, 1=experiment, 2=ground-truth", ["0", "1", "2"]),
