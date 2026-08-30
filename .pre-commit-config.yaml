@@ -22,7 +22,9 @@ repos:
       - id: clang-format
         name: clang-format
         entry: clang-format -i --style=file:pre-commit/.clang-format
-        language: system
+        language: python
+        additional_dependencies:
+          - clang-format==18.1.8
         files: \.(cpp|cc|h|hpp)$
 
       - id: capitalize-cpp-comments
