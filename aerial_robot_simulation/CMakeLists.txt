@@ -39,6 +39,8 @@ if(BUILD_GAZEBO_SIM)
   find_package(gz-cmake3 REQUIRED)
   find_package(gz-sim8 REQUIRED)
   find_package(gz-plugin2 REQUIRED)
+  find_package(gz-gui8 REQUIRED)
+  find_package(Qt5 REQUIRED COMPONENTS Core Qml Quick)
   find_package(gz_ros2_control REQUIRED)
 else()
   message(STATUS "Building aerial_robot_simulation without Gazebo support on ${CMAKE_SYSTEM_PROCESSOR}")
@@ -85,6 +87,10 @@ target_link_libraries(spinal_interface
 )
 
 if(BUILD_GAZEBO_SIM)
+  add_library(RenderRateLimit SHARED src/render_rate_limit.cpp src/render_rate_limit.qrc)
+  set_target_properties(RenderRateLimit PROPERTIES AUTOMOC ON AUTORCC ON)
+  target_link_libraries(RenderRateLimit gz-gui8::gz-gui8 gz-plugin2::register)
+
   add_library(aerial_robot_hw_sim SHARED
     src/aerial_robot_hw_sim.cpp)
   ament_target_dependencies(aerial_robot_hw_sim
@@ -146,6 +152,7 @@ set(PROJECT_TARGETS
 
 if(BUILD_GAZEBO_SIM)
   list(APPEND PROJECT_TARGETS
+    RenderRateLimit
     aerial_robot_hw_sim
     simulation_attitude_controller
   )
