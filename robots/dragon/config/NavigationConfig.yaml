@@ -1,0 +1,53 @@
+/**/aerial_robot_core:
+  ros__parameters:
+    navigation:
+      param_verbose: false
+      xy_control_mode: 0
+      takeoff_height: 1.2
+      outdoor_takeoff_height: 1.5
+      land_descend_vel: -0.3
+      takeoff_xy_pos_tolerance: 0.3
+      takeoff_z_pos_tolerance: 0.3
+      hover_convergent_duration: 1.0
+      land_check_duration: 0.5
+      trajectory_reset_duration: 0.5
+      teleop_reset_duration: 0.5
+      z_convergent_thresh: 0.05
+      xy_convergent_thresh: 0.15
+      land_pos_convergent_thresh: 0.02
+      land_vel_convergent_thresh: 0.05
+      max_target_vel: 0.5
+      joy_target_vel_interval: 0.005
+      joy_target_z_interval: 0.02
+      max_target_yaw_rate: 0.1
+      teleop_local_frame: fc
+      cmd_vel_lev2_gain: 2.0
+      nav_vel_limit: 1.0
+      vel_nav_threshold: 0.4
+      vel_nav_gain: 1.0
+      gain_tunning_mode: 0
+      max_target_tilt_angle: 0.2
+      cmd_angle_lev2_gain: 1.5
+      trajectory_mean_vel: 0.5
+      trajectory_mean_yaw_rate: 0.3
+      trajectory_min_duration: 2.0
+      enable_latch_yaw_trajectory: false
+      max_teleop_xy_vel: 0.5
+      max_teleop_z_vel: 0.5
+      max_teleop_yaw_vel: 0.1
+      max_teleop_rp_angle: 1.2
+      joy_stick_deadzone: 0.2
+      joy_stick_heart_beat_duration: 2.0
+      force_landing_to_halt_duration: 1.0
+      check_joy_stick_heart_beat: false
+      gps_waypoint_threshold: 3.0
+      gps_waypoint_check_duration: 1.0
+      baselink_rot_pub_interval: 0.2
+      baselink_rot_change_thresh: 0.04
+      bat_info:
+        bat_cell: 6
+        bat_resistance: 0.08
+        hovering_current: 10.0
+        low_voltage_thre: 2.0
+        high_voltage_cell_thre: 1.0
+        bat_resistance_voltage_rate: 0.0

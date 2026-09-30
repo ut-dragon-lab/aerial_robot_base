@@ -153,7 +153,7 @@ void GimbalrotorController::controlCore()
   }
   else
   {
-    target_wrench_acc_cog.tail(3) = Eigen::Vector3d(target_ang_acc_x, target_ang_acc_y, target_ang_acc_z) + gyro;
+    target_wrench_acc_cog.tail(3) = Eigen::Vector3d(target_ang_acc_x, target_ang_acc_y, target_ang_acc_z) + inertia.inverse() * gyro;
   }
 
   pid_msg_.roll.total.at(0) = target_ang_acc_x;
@@ -286,7 +286,7 @@ void GimbalrotorController::controlCore()
     }
     else
     {
-      if (std::abs(f_i_integrated[0]) > 1.0e-9 && std::abs(f_i_integrated[2]) > 1.0e-9)
+      if (f_i_integrated.norm() > 1.0e-9)
       {
         const double gimbal_roll = atan2(-f_i_integrated[1], f_i_integrated[2]);
         const double gimbal_pitch = atan2(f_i_integrated[0],

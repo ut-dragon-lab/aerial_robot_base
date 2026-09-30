@@ -39,7 +39,7 @@
 #include <tinyxml2.h>
 #include <urdf/model.h>
 
-#include <ignition/math/Vector3.hh>
+#include <gz/math/Vector3.hh>
 #include <memory>
 #include <rclcpp/rclcpp.hpp>
 #include <string>
@@ -99,10 +99,10 @@ public:
     }
   }
 
-  inline ignition::math::Vector3d getTorque() const
+  inline gz::math::Vector3d getTorque() const
   {
     // X=moment noise, Z=force * direction * m_f_rate_
-    return ignition::math::Vector3d(aerial_robot_simulation::gaussianKernel(dual_rotor_moment_noise_), 0,
+    return gz::math::Vector3d(aerial_robot_simulation::gaussianKernel(dual_rotor_moment_noise_), 0,
                                     getForce() * direction_ * m_f_rate_);
   }
 

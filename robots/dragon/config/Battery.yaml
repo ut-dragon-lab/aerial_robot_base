@@ -1,0 +1,9 @@
+/**/aerial_robot_core:
+  ros__parameters:
+    bat_info:
+      bat_cell: 6
+      bat_resistance: 0.08
+      hovering_current: 10.0
+      low_voltage_thre: 2.0
+      high_voltage_cell_thre: 1.0
+      bat_resistance_voltage_rate: 0.0

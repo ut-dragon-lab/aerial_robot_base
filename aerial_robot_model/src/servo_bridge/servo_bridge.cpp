@@ -57,7 +57,8 @@ ServoBridge::ServoBridge(rclcpp::Node::SharedPtr node) : node_(node)
   {
     auto cli = node_->create_client<controller_manager_msgs::srv::LoadController>(
         node_->get_namespace() + std::string("/controller_manager/load_controller"));
-    if (!cli->wait_for_service(5s))
+    const double timeout = node_->get_parameter_or("controller_manager_timeout", 5.0);
+    if (!cli->wait_for_service(std::chrono::duration<double>(timeout)))
     {
       RCLCPP_ERROR(node_->get_logger(), "[model] Cannot find %s; aborting", cli->get_service_name());
       return;

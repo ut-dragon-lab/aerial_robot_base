@@ -16,3 +16,9 @@ repositories:
     url: "https://github.com/ut-dragon-lab/aerial_robot_nerve.git"
     version: "master"
     local-name: "aerial_robot_nerve"
+
+  gz_ros2_control:
+    type: git
+    url: "https://github.com/ros-controls/gz_ros2_control.git"
+    # Humble branch, built against the installed Gazebo Harmonic with GZ_VERSION=harmonic.
+    version: "c88a5fd9170af120c263c1201f0744a40f93d673"

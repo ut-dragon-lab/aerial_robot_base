@@ -21,12 +21,9 @@
 
     <!-- A global light source -->
    <scene>
-      <sky>
-        <clouds>
-          <speed>12</speed>
-        </clouds>
-      </sky>
-      <ambient>0.3 0.3 0.3 1</ambient>
+
+      <ambient>0.22 0.22 0.22 1</ambient>
+      <background>0.16 0.19 0.23 1</background>
       <shadows>true</shadows>
       <grid>true</grid>
    </scene>

@@ -21,8 +21,9 @@
   <depend>hardware_interface</depend>
   <depend>urdf</depend>
   <depend>urdfdom_headers</depend>
-  <depend>ignition-math6</depend>
-  <depend>ignition-gazebo6</depend>
+  <depend>gz-math7</depend>
+  <depend>gz-sim8</depend>
+  <depend>gz-gui8</depend>
   <depend>tinyxml2_vendor</depend>
   <depend>aerial_robot_model</depend>
   <depend>ros_gz_sim</depend>

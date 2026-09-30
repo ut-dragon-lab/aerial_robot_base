@@ -1,0 +1,56 @@
+{
+  "base_link.stl": {
+    "original_triangles": 41692,
+    "visual_triangles": 19999,
+    "max_bounds_error_m": 0.00028494522845340375,
+    "surface_area_relative_error": 0.011310198730002385
+  },
+  "battery.stl": {
+    "original_triangles": 636,
+    "visual_triangles": 636,
+    "max_bounds_error_m": 0.0,
+    "surface_area_relative_error": 0.0
+  },
+  "end_link.stl": {
+    "original_triangles": 16917,
+    "visual_triangles": 9999,
+    "max_bounds_error_m": 0.000150839371154933,
+    "surface_area_relative_error": 0.0033753914008135544
+  },
+  "general_link.stl": {
+    "original_triangles": 25446,
+    "visual_triangles": 9999,
+    "max_bounds_error_m": 0.0002849452284535703,
+    "surface_area_relative_error": 0.011760642862456816
+  },
+  "gimbal_pitch.stl": {
+    "original_triangles": 12703,
+    "visual_triangles": 5000,
+    "max_bounds_error_m": 0.000488515304143608,
+    "surface_area_relative_error": 0.003581155707092498
+  },
+  "gimbal_roll.stl": {
+    "original_triangles": 44809,
+    "visual_triangles": 19999,
+    "max_bounds_error_m": 1.152471630891383e-05,
+    "surface_area_relative_error": 0.0063450551806063515
+  },
+  "head_link.stl": {
+    "original_triangles": 16932,
+    "visual_triangles": 10000,
+    "max_bounds_error_m": 5.766767945986073e-05,
+    "surface_area_relative_error": 0.003385205692908344
+  },
+  "inter_joint_junction.stl": {
+    "original_triangles": 33071,
+    "visual_triangles": 10000,
+    "max_bounds_error_m": 0.00021088759943046348,
+    "surface_area_relative_error": 0.006251175673340215
+  },
+  "sensor/livox_mid360_v1_5.stl": {
+    "original_triangles": 8130,
+    "visual_triangles": 5000,
+    "max_bounds_error_m": 2.9383240667021915e-05,
+    "surface_area_relative_error": 0.009329859171416266
+  }
+}
