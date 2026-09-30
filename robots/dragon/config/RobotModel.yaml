@@ -1,0 +1,8 @@
+/**/aerial_robot_core:
+  ros__parameters:
+    robot_model_plugin_name: dragon_robot_model
+    thrust_frame_prefix: link
+    kinematic_verbose: false
+    fc_f_min_thre: 0.0
+    fc_t_min_thre: 0.0
+    epsilon: 10.0

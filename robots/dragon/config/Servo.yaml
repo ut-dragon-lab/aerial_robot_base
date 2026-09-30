@@ -1,0 +1,106 @@
+/**/servo_bridge:
+  ros__parameters:
+    servo_controller:
+      groups:
+      - joints
+      - gimbals
+      joints:
+        angle_sgn: 1
+        angle_scale: 0.001534
+        zero_point_offset: 2047
+        no_real_state: false
+        state_sub_topic: ''
+        pos_pub_topic: ''
+        torque_pub_topic: ''
+        servo_enable_pub_topic: ''
+        simulation:
+          type: joint_group_position_controller
+        names:
+        - joint1_pitch
+        - joint1_yaw
+        - joint2_pitch
+        - joint2_yaw
+        - joint3_pitch
+        - joint3_yaw
+        joint1_pitch:
+          id: 0
+          init_value: 0.0
+        joint1_yaw:
+          id: 1
+          init_value: 1.56
+        joint2_pitch:
+          id: 2
+          init_value: 0.0
+        joint2_yaw:
+          id: 3
+          init_value: 1.56
+        joint3_pitch:
+          id: 4
+          init_value: 0.0
+        joint3_yaw:
+          id: 5
+          init_value: 1.56
+      gimbals:
+        angle_sgn: 1
+        angle_scale: 0.001534
+        zero_point_offset: 2047
+        no_real_state: false
+        state_sub_topic: ''
+        pos_pub_topic: ''
+        torque_pub_topic: ''
+        servo_enable_pub_topic: ''
+        simulation:
+          type: gimbal_position_controller
+        names:
+        - gimbal1_roll
+        - gimbal1_pitch
+        - gimbal2_roll
+        - gimbal2_pitch
+        - gimbal3_roll
+        - gimbal3_pitch
+        - gimbal4_roll
+        - gimbal4_pitch
+        gimbal1_roll:
+          id: 0
+          init_value: 0.0
+        gimbal1_pitch:
+          id: 1
+          init_value: 0.0
+        gimbal2_roll:
+          id: 2
+          init_value: 0.0
+        gimbal2_pitch:
+          id: 3
+          init_value: 0.0
+        gimbal3_roll:
+          id: 4
+          init_value: 0.0
+        gimbal3_pitch:
+          id: 5
+          init_value: 0.0
+        gimbal4_roll:
+          id: 6
+          init_value: 0.0
+        gimbal4_pitch:
+          id: 7
+          init_value: 0.0
+/**/joint_group_position_controller:
+  ros__parameters:
+    joints:
+    - joint1_pitch
+    - joint1_yaw
+    - joint2_pitch
+    - joint2_yaw
+    - joint3_pitch
+    - joint3_yaw
+/**/gimbal_position_controller:
+  ros__parameters:
+    joints:
+    - gimbal1_roll
+    - gimbal1_pitch
+    - gimbal2_roll
+    - gimbal2_pitch
+    - gimbal3_roll
+    - gimbal3_pitch
+    - gimbal4_roll
+    - gimbal4_pitch

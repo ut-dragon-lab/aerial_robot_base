@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>dragon</name>
+  <version>0.1.0</version>
+  <description>ROS 2 DRAGON v1.5 model, vectoring control and transformation demo.</description>
+  <maintainer email="j-sugihara@dragon.t.u-tokyo.ac.jp">Junichiro Sugihara</maintainer>
+  <license>BSD-3-Clause</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>gimbalrotor</depend>
+  <depend>pluginlib</depend>
+  <depend>aerial_robot_model</depend>
+  <exec_depend>aerial_robot_core</exec_depend>
+  <exec_depend>aerial_robot_simulation</exec_depend>
+  <exec_depend>controller_manager</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>xacro</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <export><build_type>ament_cmake</build_type></export>
+</package>

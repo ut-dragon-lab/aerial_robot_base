@@ -95,4 +95,7 @@ xhost +local:root
 ```
 
 ## Run
+For the ROS 2 DRAGON simulation, takeoff and transformation demo, see
+[robots/dragon/README.md](robots/dragon/README.md).
+
 To run simulation and real-machine, please check the instructions in our [wiki](https://github.com/ut-dragon-lab/aerial_robot_base/wiki).

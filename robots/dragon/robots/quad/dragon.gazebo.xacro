@@ -1,0 +1,84 @@
+<?xml version="1.0"?>
+<robot
+    xmlns:xacro="http://www.ros.org/wiki/xacro" name="dragon" >
+  <xacro:arg name="robot_name" default="dragon" />
+  <xacro:arg name="rotor_visual_speed_rate" default="20.0" />
+
+  <xacro:include filename="$(find dragon)/robots/quad/dragon.urdf.xacro" />
+
+  <xacro:macro name="rotor_control_joint" params="id">
+    <joint name="rotor${id}">
+      <command_interface name="effort">
+        <param name="min">${min_force}</param>
+        <param name="max">${max_force}</param>
+      </command_interface>
+      <state_interface name="position">
+        <param name="initial_value">${0}</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+      <state_interface name="effort"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:macro name="gimbal_control_joint" params="name initial:=0.0 lower:=-3.14 upper:=3.14">
+    <joint name="${name}">
+      <command_interface name="position">
+        <param name="min">${lower}</param>
+        <param name="max">${upper}</param>
+      </command_interface>
+      <state_interface name="position">
+        <param name="initial_value">${initial}</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+      <state_interface name="effort"/>
+    </joint>
+  </xacro:macro>
+
+  <ros2_control name="aerial_robot_sim_system" type="system">
+    <hardware>
+      <plugin>gz_ros2_control/AerialRobotHwSim</plugin>
+      <param name="m_f_rate">0.0</param>
+      <param name="rotor_visual_speed_rate">$(arg rotor_visual_speed_rate)</param>
+    </hardware>
+    <xacro:rotor_control_joint id="1"/>
+    <xacro:rotor_control_joint id="2"/>
+    <xacro:rotor_control_joint id="3"/>
+    <xacro:rotor_control_joint id="4"/>
+    <xacro:gimbal_control_joint name="joint1_pitch" initial="0.0" lower="${-pi/2}" upper="${pi/2}"/>
+    <xacro:gimbal_control_joint name="joint1_yaw" initial="1.56" lower="${-pi/2}" upper="${pi/2}"/>
+    <xacro:gimbal_control_joint name="joint2_pitch" initial="0.0" lower="${-pi/2}" upper="${pi/2}"/>
+    <xacro:gimbal_control_joint name="joint2_yaw" initial="1.56" lower="${-pi/2}" upper="${pi/2}"/>
+    <xacro:gimbal_control_joint name="joint3_pitch" initial="0.0" lower="${-pi/2}" upper="${pi/2}"/>
+    <xacro:gimbal_control_joint name="joint3_yaw" initial="1.56" lower="${-pi/2}" upper="${pi/2}"/>
+    <xacro:gimbal_control_joint name="gimbal1_roll" initial="0.0"/>
+    <xacro:gimbal_control_joint name="gimbal1_pitch" initial="0.0"/>
+    <xacro:gimbal_control_joint name="gimbal2_roll" initial="0.0"/>
+    <xacro:gimbal_control_joint name="gimbal2_pitch" initial="0.0"/>
+    <xacro:gimbal_control_joint name="gimbal3_roll" initial="0.0"/>
+    <xacro:gimbal_control_joint name="gimbal3_pitch" initial="0.0"/>
+    <xacro:gimbal_control_joint name="gimbal4_roll" initial="0.0"/>
+    <xacro:gimbal_control_joint name="gimbal4_pitch" initial="0.0"/>
+    <sensor name="spinal_imu">
+      <state_interface name="orientation.x"/>
+      <state_interface name="orientation.y"/>
+      <state_interface name="orientation.z"/>
+      <state_interface name="orientation.w"/>
+      <state_interface name="angular_velocity.x"/>
+      <state_interface name="angular_velocity.y"/>
+      <state_interface name="angular_velocity.z"/>
+      <state_interface name="linear_acceleration.x"/>
+      <state_interface name="linear_acceleration.y"/>
+      <state_interface name="linear_acceleration.z"/>
+    </sensor>
+    <sensor name="spinal_mag">
+      <state_interface name="field_tesla.x"/>
+      <state_interface name="field_tesla.y"/>
+      <state_interface name="field_tesla.z"/>
+    </sensor>
+  </ros2_control>
+
+  <!-- gazebo plugin for default controller and sensors -->
+  <xacro:include filename="$(find aerial_robot_simulation)/xacro/spinal.gazebo.xacro" />
+  <xacro:gazebo_spinal robot_name="$(arg robot_name)" mag_frame="fc" config_file="$(find dragon)/config/Simulation.yaml" />
+
+</robot>

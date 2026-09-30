@@ -1,0 +1,48 @@
+/**/aerial_robot_core:
+  ros__parameters:
+    aerial_robot_control_name: aerial_robot_control/gimbalrotor_controller
+    controller:
+      torque_allocation_matrix_inv_pub_interval: 0.05
+      wrench_allocation_matrix_pub_interval: 0.1
+      gimbal_calc_in_fc: false
+      xy:
+        p_gain: 2.0
+        i_gain: 0.01
+        d_gain: 2.5
+        limit_sum: 10.0
+        limit_p: 10.0
+        limit_i: 10.0
+        limit_d: 10.0
+        force_landing_descending_rate: -1.0
+      z:
+        p_gain: 2.8
+        i_gain: 1.2
+        d_gain: 2.8
+        limit_err_p: 1.0
+        limit_sum: 20.0
+        limit_p: 20.0
+        limit_i: 20.0
+        limit_d: 20.0
+        force_landing_descending_rate: -0.5
+        landing_err_z: -0.4
+      roll_pitch:
+        p_gain: 1.0
+        i_gain: 0.0
+        d_gain: 1.0
+        limit_sum: 10.0
+        limit_p: 10.0
+        limit_i: 10.0
+        limit_d: 10.0
+        start_integration_height: 0.01
+      yaw:
+        p_gain: 1.5
+        i_gain: 0.0
+        d_gain: 1.5
+        limit_err_p: 0.4
+        limit_sum: 10.0
+        limit_p: 10.0
+        limit_i: 10.0
+        limit_d: 10.0
+        need_d_control: true
+      gimbal_dof: 2
+      uav_model: 32

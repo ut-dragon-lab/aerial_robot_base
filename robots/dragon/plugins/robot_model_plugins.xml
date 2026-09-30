@@ -1,0 +1,5 @@
+<library path="dragon_robot_model">
+  <class name="dragon_robot_model" type="DragonRobotModel" base_class_type="aerial_robot_model::RobotModel">
+    <description>Four-link DRAGON model with two-axis thrust vectoring.</description>
+  </class>
+</library>
