@@ -28,7 +28,8 @@ default_mesa_gl_version_override = os.environ.get("MESA_GL_VERSION_OVERRIDE", "4
 default_mesa_glsl_version_override = os.environ.get("MESA_GLSL_VERSION_OVERRIDE", "450" if is_wslg else "")
 _ARGS = [
     ("robot_ns", "hydrus", "Namespace for all robot nodes"),
-    ("world_sdf_file", default_world, "Ignition world SDF file path (default: empty world included in this package)"),
+    ("robot_model", LaunchConfiguration("robot_ns"), "ROS package containing the robot resources"),
+    ("world_sdf_file", default_world, "Gazebo world SDF file path (default: empty world included in this package)"),
     ("headless", "true", "Run without GUI", ["true", "false"]),
     ("render_engine", "ogre2", "Gazebo render engine", ["ogre2", "ogre"]),
     ("qt_qpa_platform", default_qt_qpa_platform, "Qt platform plugin used by Gazebo GUI"),
@@ -76,7 +77,7 @@ def generate_launch_description():
     # ------------------------------------------------------------------
     # 2.  Derived paths & environment variables
     # ------------------------------------------------------------------
-    robot_share_dir = PathJoinSubstitution([FindPackagePrefix(robot_ns), "share"])
+    robot_share_dir = PathJoinSubstitution([FindPackagePrefix(LaunchConfiguration("robot_model")), "share"])
 
     # Pass through DISPLAY env var for Gazebo GUI (if not headless)
     set_env = SetEnvironmentVariable(name="DISPLAY", value=os.environ.get("DISPLAY", ""))
@@ -120,28 +121,9 @@ def generate_launch_description():
     set_gazebo_default_path = SetEnvironmentVariable(
         name="GZ_SIM_SYSTEM_PLUGIN_PATH",
         value=[
-            TextSubstitution(text="/opt/ros/humble/lib"),
+            PathJoinSubstitution([FindPackagePrefix("gz_ros2_control"), "lib"]),
             TextSubstitution(text=os.pathsep),
             EnvironmentVariable("GZ_SIM_SYSTEM_PLUGIN_PATH", default_value=""),
-        ],
-    )
-
-    # Fortress (`ign gazebo`) uses IGN_GAZEBO_* env vars
-    set_ignition_resource_path = SetEnvironmentVariable(
-        name="IGN_GAZEBO_RESOURCE_PATH",
-        value=[
-            EnvironmentVariable("IGN_GAZEBO_RESOURCE_PATH", default_value=""),
-            TextSubstitution(text=":"),
-            robot_share_dir,
-        ],
-    )
-
-    set_ignition_default_path = SetEnvironmentVariable(
-        name="IGN_GAZEBO_SYSTEM_PLUGIN_PATH",
-        value=[
-            TextSubstitution(text="/opt/ros/humble/lib"),
-            TextSubstitution(text=os.pathsep),
-            EnvironmentVariable("IGN_GAZEBO_SYSTEM_PLUGIN_PATH", default_value=""),
         ],
     )
 
@@ -152,26 +134,23 @@ def generate_launch_description():
     # ------------------------------------------------------------------
     # 3.  Execute Gazebo processes
     # ------------------------------------------------------------------
-    ign_server = ExecuteProcess(
+    gz_server = ExecuteProcess(
         cmd=[
-            "ign",
-            "gazebo",
+            "gz",
+            "sim",
             "--render-engine",
             render_engine,
             "-r",
             "-s",
-            "libgazebo_ros_factory.so",
-            "-s",
-            "libgazebo_ros_init.so",
             world,
         ],
         output="screen",
     )
 
-    ign_client = ExecuteProcess(
+    gz_client = ExecuteProcess(
         cmd=[
-            "ign",
-            "gazebo",
+            "gz",
+            "sim",
             "-g",
             "--render-engine",
             render_engine,
@@ -180,7 +159,7 @@ def generate_launch_description():
         output="screen",
     )
 
-    shutdown_handler = RegisterEventHandler(OnProcessExit(target_action=ign_server, on_exit=[Shutdown()]))
+    shutdown_handler = RegisterEventHandler(OnProcessExit(target_action=gz_server, on_exit=[Shutdown()]))
 
     # ------------------------------------------------------------------
     # 3.  Nodes
@@ -196,7 +175,7 @@ def generate_launch_description():
     clock_bridge = Node(
         package="ros_gz_bridge",
         executable="parameter_bridge",
-        arguments=["/clock@rosgraph_msgs/msg/Clock[ignition.msgs.Clock"],
+        arguments=["/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock"],
         output="screen",
     )
 
@@ -249,13 +228,11 @@ def generate_launch_description():
     ld.add_action(set_mesa_glsl_version_override)
     ld.add_action(set_gazebo_resource_path)
     ld.add_action(set_gazebo_default_path)
-    ld.add_action(set_ignition_resource_path)
-    ld.add_action(set_ignition_default_path)
     ld.add_action(set_fastrtps_profile)
     ld.add_action(shutdown_handler)
     ld.add_action(sim_param_server)
-    ld.add_action(ign_server)
-    ld.add_action(ign_client)
+    ld.add_action(gz_server)
+    ld.add_action(gz_client)
     ld.add_action(clock_bridge)
     ld.add_action(spawn_robot)
     ld.add_action(att_controller_spawner)

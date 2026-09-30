@@ -27,7 +27,7 @@ find_package(pluginlib REQUIRED)
 # find_package(gazebo_ros2_control REQUIRED)
 find_package(urdf REQUIRED)
 find_package(urdfdom_headers REQUIRED)
-find_package(ignition-math6 REQUIRED)
+find_package(gz-math7 REQUIRED)
 find_package(tinyxml2_vendor REQUIRED)
 find_package(TinyXML2 REQUIRED)
 # find_package(ros_gz_sim REQUIRED)
@@ -36,15 +36,15 @@ find_package(controller_manager_msgs REQUIRED)
 find_package(controller_manager REQUIRED)
 
 if(BUILD_GAZEBO_SIM)
-  find_package(ignition-cmake2 REQUIRED)
-  find_package(ignition-gazebo6 REQUIRED)
-  find_package(ignition-plugin1 REQUIRED)
+  find_package(gz-cmake3 REQUIRED)
+  find_package(gz-sim8 REQUIRED)
+  find_package(gz-plugin2 REQUIRED)
   find_package(gz_ros2_control REQUIRED)
 else()
   message(STATUS "Building aerial_robot_simulation without Gazebo support on ${CMAKE_SYSTEM_PROCESSOR}")
 endif()
 
-add_definitions(-DSIMULATION)
+add_definitions(-DSIMULATION -DGZ_HEADERS)
 
 include_directories(
   include
@@ -58,7 +58,7 @@ target_include_directories(rotor_handle_lib INTERFACE
 ament_target_dependencies(rotor_handle_lib INTERFACE
   rclcpp
   urdfdom_headers
-  ignition-math6
+  gz-math7
   tinyxml2_vendor
   aerial_robot_model
 )
@@ -94,9 +94,9 @@ if(BUILD_GAZEBO_SIM)
     pluginlib
     nav_msgs
     geometry_msgs
-    ignition-math6
+    gz-math7
     gz_ros2_control
-    ignition-gazebo6
+    gz-sim8
   )
   target_link_libraries(aerial_robot_hw_sim
     spinal_interface
@@ -113,7 +113,7 @@ if(BUILD_GAZEBO_SIM)
     nav_msgs
     geometry_msgs
     gz_ros2_control
-    ignition-gazebo6
+    gz-sim8
     controller_interface
     spinal
   )
@@ -180,6 +180,11 @@ if(BUILD_GAZEBO_SIM)
 endif()
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
+ament_export_dependencies(gz-math7)
+if(BUILD_GAZEBO_SIM)
+  ament_export_definitions(GZ_HEADERS)
+  ament_export_dependencies(gz_ros2_control gz-sim8)
+endif()
 
 # Linters
 if(BUILD_TESTING)

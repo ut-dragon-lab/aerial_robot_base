@@ -3,10 +3,15 @@
 <robot
     xmlns:xacro="http://www.ros.org/wiki/xacro" name="spinal" >
 
-  <xacro:macro name="gazebo_spinal" params="robot_name imu_frame:=fc mag_frame:=magnet gps_frame:=gps">
+  <xacro:macro name="gazebo_spinal" params="robot_name imu_frame:=fc mag_frame:=magnet gps_frame:=gps config_file:=''">
   <gazebo>
     <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
-      <parameters>$(find ${robot_name})/config/Simulation.yaml</parameters>
+      <xacro:if value="${config_file != ''}">
+        <parameters>${config_file}</parameters>
+      </xacro:if>
+      <xacro:unless value="${config_file != ''}">
+        <parameters>$(find ${robot_name})/config/Simulation.yaml</parameters>
+      </xacro:unless>
       <ros>
         <namespace>${robot_name}</namespace>
       </ros>
@@ -71,8 +76,8 @@
         <always_on>1</always_on>
         <update_rate>1000.0</update_rate>
         <plugin
-            filename="libignition-gazebo-imu-system.so"
-            name="ignition::gazebo::systems::Imu">
+            filename="libgz-sim-imu-system.so"
+            name="gz::sim::systems::Imu">
           <!-- topic and frame are inferred from <sensor> element -->
         </plugin>
       </sensor>
@@ -110,8 +115,8 @@
         <always_on>1</always_on>
         <update_rate>1000.0</update_rate>
         <plugin
-            filename="libignition-gazebo-magnetometer-system.so"
-            name="ignition::gazebo::systems::Magnetometer"/>
+            filename="libgz-sim-magnetometer-system.so"
+            name="gz::sim::systems::Magnetometer"/>
       </sensor>
     </gazebo>
 
@@ -123,8 +128,8 @@
 
         <!-- Ignition-Gazebo NavSat system plugin -->
         <plugin
-            filename="ignition-gazebo-navsat-system"
-            name="ignition::gazebo::systems::NavSat">
+            filename="gz-sim-navsat-system"
+            name="gz::sim::systems::NavSat">
           <topic>sim/gps/fix</topic>
           <velocity_topic>sim/gps/velocity</velocity_topic>
           <frameName>${gps_frame}</frameName>

@@ -26,11 +26,19 @@ rosdep update
 ```bash
 vcs import src --input https://raw.githubusercontent.com/ut-dragon-lab/aerial_robot_base/master/aerial_robot_base.repos
 vcs import src < src/aerial_robot_base/aerial_robot_${ROS_DISTRO}.repos
-rosdep install -y -r --from-paths src --ignore-src --rosdistro ${ROS_DISTRO}
+export GZ_VERSION=harmonic
+# ros_gz_sim / ros_gz_bridge are supplied by the installed ros-gzharmonic packages.
+rosdep install -y -r --from-paths src --ignore-src --rosdistro ${ROS_DISTRO} \
+  --skip-keys="ros_gz_sim ros_gz_bridge"
 ```
+The simulation uses the installed Gazebo Harmonic (`gz-sim8`) and the Humble
+`ros-gzharmonic` packages. Build `gz_ros2_control` from the imported source
+against the same Gazebo version.
+
 Build the workspace
 ```bash
-colcon build --symlink-install
+export GZ_VERSION=harmonic
+colcon build --symlink-install --packages-skip gz_ros2_control_demos ign_ros2_control_demos gz_ros2_control_tests --cmake-args -DCMAKE_BUILD_TYPE=Release
 source install/setup.bash
 ```
 

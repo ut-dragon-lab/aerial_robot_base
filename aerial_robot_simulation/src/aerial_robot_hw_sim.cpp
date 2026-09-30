@@ -40,30 +40,31 @@ magnetometer and pseudo-motion capture are incorporated.
 
 #include "aerial_robot_simulation/aerial_robot_hw_sim.h"
 
-#include <ignition/msgs/imu.pb.h>
+#include <gz/msgs/imu.pb.h>
+#include <gz/msgs/magnetometer.pb.h>
 
-#include <ignition/gazebo/Joint.hh>
-#include <ignition/gazebo/Link.hh>
-#include <ignition/gazebo/Util.hh>
-#include <ignition/gazebo/components/AngularVelocity.hh>
-#include <ignition/gazebo/components/Imu.hh>
-#include <ignition/gazebo/components/JointForce.hh>
-#include <ignition/gazebo/components/JointForceCmd.hh>
-#include <ignition/gazebo/components/JointPosition.hh>
-#include <ignition/gazebo/components/JointPositionReset.hh>
-#include <ignition/gazebo/components/JointVelocity.hh>
-#include <ignition/gazebo/components/JointVelocityCmd.hh>
-#include <ignition/gazebo/components/JointVelocityReset.hh>
-#include <ignition/gazebo/components/LinearAcceleration.hh>
-#include <ignition/gazebo/components/LinearVelocity.hh>
-#include <ignition/gazebo/components/Link.hh>
-#include <ignition/gazebo/components/Magnetometer.hh>
-#include <ignition/gazebo/components/Name.hh>
-#include <ignition/gazebo/components/ParentEntity.hh>
-#include <ignition/gazebo/components/Pose.hh>
-#include <ignition/gazebo/components/Sensor.hh>
-#include <ignition/math.hh>
-#include <ignition/transport/Node.hh>
+#include <gz/sim/Joint.hh>
+#include <gz/sim/Link.hh>
+#include <gz/sim/Util.hh>
+#include <gz/sim/components/AngularVelocity.hh>
+#include <gz/sim/components/Imu.hh>
+#include <gz/sim/components/JointForce.hh>
+#include <gz/sim/components/JointForceCmd.hh>
+#include <gz/sim/components/JointPosition.hh>
+#include <gz/sim/components/JointPositionReset.hh>
+#include <gz/sim/components/JointVelocity.hh>
+#include <gz/sim/components/JointVelocityCmd.hh>
+#include <gz/sim/components/JointVelocityReset.hh>
+#include <gz/sim/components/LinearAcceleration.hh>
+#include <gz/sim/components/LinearVelocity.hh>
+#include <gz/sim/components/Link.hh>
+#include <gz/sim/components/Magnetometer.hh>
+#include <gz/sim/components/Name.hh>
+#include <gz/sim/components/ParentEntity.hh>
+#include <gz/sim/components/Pose.hh>
+#include <gz/sim/components/Sensor.hh>
+#include <gz/math.hh>
+#include <gz/transport/Node.hh>
 #include <cmath>
 #include <exception>
 #include <limits>
@@ -72,8 +73,8 @@ magnetometer and pseudo-motion capture are incorporated.
 #include <string>
 #include <utility>
 #include <vector>
-#define GZ_TRANSPORT_NAMESPACE ignition::transport::
-#define GZ_MSGS_NAMESPACE ignition::msgs::
+#define GZ_TRANSPORT_NAMESPACE gz::transport::
+#define GZ_MSGS_NAMESPACE gz::msgs::
 #include <hardware_interface/hardware_info.hpp>
 
 struct jointData
@@ -233,7 +234,7 @@ public:
   // Noise nad drift parameters
   double mocap_rot_noise_, mocap_pos_noise_;
   double ground_truth_pos_noise_, ground_truth_vel_noise_, ground_truth_rot_noise_, ground_truth_angular_noise_;
-  ignition::math::Vector3d ground_truth_rot_curr_drift_, ground_truth_vel_curr_drift_, ground_truth_angular_curr_drift_;
+  gz::math::Vector3d ground_truth_rot_curr_drift_, ground_truth_vel_curr_drift_, ground_truth_angular_curr_drift_;
   double ground_truth_rot_drift_, ground_truth_vel_drift_, ground_truth_angular_drift_;
   double ground_truth_rot_drift_frequency_, ground_truth_vel_drift_frequency_, ground_truth_angular_drift_frequency_;
 
@@ -255,7 +256,7 @@ public:
   rclcpp::Time last_ground_truth_time_, last_mocap_time_, last_pos_read_time_;
 
   // Last position of baselink frame
-  ignition::math::Vector3d last_baselink_pos_;
+  gz::math::Vector3d last_baselink_pos_;
 };
 
 namespace gz_ros2_control
@@ -880,7 +881,7 @@ hardware_interface::return_type AerialRobotHwSim::read(const rclcpp::Time &sim_t
       odom_msg.pose.pose.position.z = pose.Pos().Z() +
                                       aerial_robot_simulation::gaussianKernel(this->dataPtr->ground_truth_pos_noise_);
 
-      ignition::math::Vector3d delta_euler(
+      gz::math::Vector3d delta_euler(
           aerial_robot_simulation::addNoise(this->dataPtr->ground_truth_rot_curr_drift_.X(),
                                             this->dataPtr->ground_truth_rot_drift_,
                                             this->dataPtr->ground_truth_rot_drift_frequency_, 0,
@@ -893,7 +894,7 @@ hardware_interface::return_type AerialRobotHwSim::read(const rclcpp::Time &sim_t
                                             this->dataPtr->ground_truth_rot_drift_,
                                             this->dataPtr->ground_truth_rot_drift_frequency_, 0,
                                             this->dataPtr->ground_truth_rot_noise_, period.seconds()));
-      ignition::math::Quaterniond q_noise = pose.Rot() * ignition::math::Quaterniond(delta_euler);
+      gz::math::Quaterniond q_noise = pose.Rot() * gz::math::Quaterniond(delta_euler);
       odom_msg.pose.pose.orientation.x = q_noise.X();
       odom_msg.pose.pose.orientation.y = q_noise.Y();
       odom_msg.pose.pose.orientation.z = q_noise.Z();
@@ -951,11 +952,11 @@ hardware_interface::return_type AerialRobotHwSim::read(const rclcpp::Time &sim_t
         pose_msg.pose.position.z = odom_msg.pose.pose.position.z +
                                    aerial_robot_simulation::gaussianKernel(this->dataPtr->mocap_pos_noise_);
 
-        delta_euler = ignition::math::Vector3d(
+        delta_euler = gz::math::Vector3d(
             aerial_robot_simulation::gaussianKernel(this->dataPtr->mocap_rot_noise_),
             aerial_robot_simulation::gaussianKernel(this->dataPtr->mocap_rot_noise_),
             aerial_robot_simulation::gaussianKernel(this->dataPtr->mocap_rot_noise_));
-        q_noise = pose.Rot() * ignition::math::Quaterniond(delta_euler);
+        q_noise = pose.Rot() * gz::math::Quaterniond(delta_euler);
         pose_msg.pose.orientation.x = q_noise.X();
         pose_msg.pose.orientation.y = q_noise.Y();
         pose_msg.pose.orientation.z = q_noise.Z();
@@ -1023,7 +1024,7 @@ hardware_interface::return_type AerialRobotHwSim::perform_command_mode_switch(
 
 hardware_interface::return_type AerialRobotHwSim::write(const rclcpp::Time &sim_time, const rclcpp::Duration &period)
 {
-  std::map<sim::Entity, std::pair<ignition::math::Vector3d, ignition::math::Vector3d>> rotor_parent_wrenches;
+  std::map<sim::Entity, std::pair<gz::math::Vector3d, gz::math::Vector3d>> rotor_parent_wrenches;
 
   for (unsigned int i = 0; i < this->dataPtr->joints_.size(); ++i)
   {
@@ -1093,7 +1094,7 @@ hardware_interface::return_type AerialRobotHwSim::write(const rclcpp::Time &sim_
         {
           sim::Link rotor_link(this->dataPtr->joints_[i].sim_child_link);
           const auto rotor_pose = sim::worldPose(this->dataPtr->joints_[i].sim_child_link, *this->dataPtr->ecm);
-          const auto thrust_axis = rotor_pose.Rot().RotateVector(ignition::math::Vector3d::UnitZ);
+          const auto thrust_axis = rotor_pose.Rot().RotateVector(gz::math::Vector3d::UnitZ);
           const auto yaw_drag_torque = thrust_axis * (thrust * this->dataPtr->joints_[i].rotor_direction *
                                                       this->dataPtr->joints_[i].m_f_rate);
 
