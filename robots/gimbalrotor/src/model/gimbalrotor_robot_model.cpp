@@ -40,6 +40,7 @@ void GimbalrotorRobotModel::initialize(rclcpp::Node::SharedPtr node, bool init_w
                                        bool fixed_model, double fc_f_min_thre, double fc_t_min_thre, double epsilon)
 {
   (void)fixed_model;
+  node->get_parameter_or("thrust_frame_prefix", thrust_frame_prefix_, std::string("rotor_arm"));
   aerial_robot_model::RobotModel::initialize(std::move(node), init_with_rosparam, verbose, false, fc_f_min_thre,
                                              fc_t_min_thre, epsilon);
 
@@ -66,7 +67,7 @@ void GimbalrotorRobotModel::updateRobotModelImpl(const KDL::JntArray &joint_posi
   std::vector<KDL::Rotation> thrust_coords_rot(getRotorNum());
   for (int i = 0; i < getRotorNum(); ++i)
   {
-    const std::string thrust = "rotor_arm" + std::to_string(i + 1);
+    const std::string thrust = thrust_frame_prefix_ + std::to_string(i + 1);
     KDL::Frame f;
     fk_solver.JntToCart(joint_positions, f, thrust);
     thrust_coords_rot[i] = cog_frame.Inverse() * f.M;

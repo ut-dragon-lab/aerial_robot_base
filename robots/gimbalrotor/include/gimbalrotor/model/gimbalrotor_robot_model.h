@@ -56,6 +56,7 @@ public:
 private:
   void updateRobotModelImpl(const KDL::JntArray &joint_positions) override;
 
+  std::string thrust_frame_prefix_{"rotor_arm"};
   std::vector<KDL::Rotation> links_rotation_from_cog_;
   std::vector<KDL::Rotation> thrust_coords_rot_;
   std::mutex links_rotation_mutex_;
